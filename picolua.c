@@ -10,6 +10,10 @@
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
 
+#include "drivers/lcd.h"
+#include "drivers/keyboard.h"
+#include "drivers/term.h"
+
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
@@ -63,7 +67,12 @@ int main() {
     size_t len;
     char ch;
 
-    stdio_init_all();
+    //stdio_init_all();
+    lcd_init();
+    lcd_clear();
+    lcd_on();
+    keyboard_init();
+    stdio_picocalc_init(); 
 
     L = luaL_newstate();
     luaL_openlibs(L);
@@ -94,6 +103,7 @@ int main() {
             luaL_buffinit(L, &buf);
             printf("\n" PROMPT);
         }else if(ch == 0x04) { // Ctrl-D
+            printf("\n");
             luaL_pushresult(&buf);
             const char *s = lua_tolstring(L, -1, &len);
             status = luaL_loadbuffer(L, s, len, "picolua");
