@@ -60,73 +60,70 @@ static int l_get_pin(lua_State *L) {
     return 1;
 }
 
+static void l_print (lua_State *L) {
+  int n = lua_gettop(L);
+  if (n > 0) {  /* any result to be printed? */
+    luaL_checkstack(L, LUA_MINSTACK, "too many results to print");
+    lua_getglobal(L, "print");
+    lua_insert(L, 1);
+    if (lua_pcall(L, n, 0, 0) != LUA_OK) lua_writestringerror("error calling 'print' (%s)", lua_tostring(L, -1));
+  }
+}
+
 int main() {
-    lua_State *L;
-    luaL_Buffer buf;
-    int status;
-    size_t len;
-    char ch;
+  lua_State *L;
+  //luaL_Buffer buf;
+  int status;
+  size_t len;
+  char ch;
 
-    //stdio_init_all();
-    lcd_init();
-    lcd_clear();
-    lcd_on();
-    keyboard_init();
-    stdio_picocalc_init(); 
+  //stdio_init_all();
+  lcd_init();
+  lcd_clear();
+  lcd_on();
+  keyboard_init();
+  stdio_picocalc_init(); 
 
-    L = luaL_newstate();
-    luaL_openlibs(L);
-    luaL_buffinit(L, &buf);
+  L = luaL_newstate();
+  luaL_openlibs(L);
+  //luaL_buffinit(L, &buf);
 
-    lua_register(L, "reset", l_reset);
-    lua_register(L, "bootsel", l_bootsel);
-    lua_register(L, "set_output", l_set_output);
-    lua_register(L, "set_pin", l_set_pin);
-    lua_register(L, "get_pin", l_get_pin);
+  lua_register(L, "reset", l_reset);
+  lua_register(L, "bootsel", l_bootsel);
+  lua_register(L, "set_output", l_set_output);
+  lua_register(L, "set_pin", l_set_pin);
+  lua_register(L, "get_pin", l_get_pin);
 
-    printf("\n*** picolua\n Ctrl-C  Clear buffer\n Ctrl-D  Execute buffer\n Ctrl-L  Clear screen\n\n" PROMPT);
+  printf("Welcome to \x1b[33mpico lua\x1b[m\n");
+  while (1) {
+    char line[256];
+    int size = term_readline(PROMPT, line, 256);
 
-    while(1) {
-        ch = (char)getchar();
-        if(ch == '\r') {
-            ch = '\n';
-        }
-
-        if(ch == 0x7F || ch == 0x08) { // DEL or BS
-            if(luaL_bufflen(&buf) > 0) {
-                luaL_buffsub(&buf, 1);
-                printf("\b \b");
-            }
-        }else if(ch == 0x0C) { // Ctrl-L (ANSI clear screen)
-            printf("\x1b[2J\x1b[1;1H" PROMPT);
-        }else if(ch == 0x03) { // Ctrl-C (clear buffer without executing)
-            luaL_buffinit(L, &buf);
-            printf("\n" PROMPT);
-        }else if(ch == 0x04) { // Ctrl-D
-            printf("\n");
-            luaL_pushresult(&buf);
-            const char *s = lua_tolstring(L, -1, &len);
-            status = luaL_loadbuffer(L, s, len, "picolua");
-            if(status != LUA_OK) {
-                const char *msg = lua_tostring(L, -1);
-                lua_writestringerror("parse error: %s\n", msg);
-            }else{
-                status = lua_pcall(L, 0, 0, 0);
-                if(status != LUA_OK) {
-                    const char *msg = lua_tostring(L, -1);
-                    lua_writestringerror("execute error: %s\n", msg);
-                }
-            }
-
-            lua_pop(L, 1);
-            luaL_buffinit(L, &buf);
-            printf(PROMPT);
-        }else if((ch >= 0x20 && ch < 0x7F) || ch == '\t' || ch == '\n') { // [ \t\na-zA-z]
-            putchar(ch);
-            luaL_addchar(&buf, ch);
-        }
+    lua_settop(L, 0);
+    int num_results = 1;
+    const char *retline = lua_pushfstring(L, "return %s;", line);
+    status = luaL_loadbuffer(L, retline, strlen(retline), "=stdin");
+    if (status != LUA_OK) {
+      lua_pop(L, 2);
+      status = luaL_loadbuffer(L, line, strlen(line), "=stdin");
+      num_results = 0;
+    } else lua_remove(L, -2);
+    if (status != LUA_OK) {
+      const char *msg = lua_tostring(L, -1);
+      lua_writestringerror("parse error: %s\n", msg);
+    } else {
+      status = lua_pcall(L, 0, num_results, 0);
+      if(status != LUA_OK) {
+        const char *msg = lua_tostring(L, -1);
+        lua_writestringerror("execute error: %s\n", msg);
+      } else {
+        printf("\x1b[36m");
+        l_print(L);
+        printf("\x1b[m");
+      }
     }
+  }
 
-    lua_close(L);
-    return 0;
+  lua_close(L);
+  return 0;
 }

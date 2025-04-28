@@ -18,14 +18,14 @@ void stdio_picocalc_deinit() {
 }
 
 static unsigned short palette[8] = {
-  RGB(0, 0, 0),
-  RGB(255, 0, 0),
-  RGB(0, 255, 0),
-  RGB(255, 255, 0),
-  RGB(0, 0, 255),
-  RGB(255, 0, 255),
-  RGB(0, 0, 255),
-  RGB(255, 255, 255),
+  RGB(0, 0, 0),       // 0 black
+  RGB(255, 0, 0),     // 1 red
+  RGB(0, 255, 0),     // 2 green
+  RGB(255, 255, 0),   // 3 yellow
+  RGB(0, 0, 255),     // 4 blue
+  RGB(255, 0, 255),   // 5 magenta
+  RGB(0, 255, 255),     // 6 cyan
+  RGB(255, 255, 255), // 7 white
 };
 
 enum {
@@ -156,3 +156,71 @@ stdio_driver_t stdio_picocalc = {
 #endif
 };
 
+static void term_draw_input(char* buffer, int size, int cursor) {
+  for (int i = 0; i < size + 1; i++) {
+    int x = ((ansi.x + i) % 53) * 6, y = (ansi.y + (i + ansi.x) / 53) * 8;
+    if (i == cursor) lcd_fill(palette[7], x, y, 6, 8);
+    else if (i < size) lcd_draw_char(x, y, palette[7], palette[0], buffer[i]);
+    else lcd_fill(palette[0], x, y, 6, 8);
+    if (ansi.y + (i + ansi.x) / 53 > 39) lcd_scroll((ansi.y + (i + ansi.x) / 53 - 39) * 8);
+  }
+}
+
+int term_readline(char* prompt, char* buffer, int max_length) {
+  int cursor = 0;
+  int size = 0;
+  stdio_picocalc_out_chars(prompt, strlen(prompt));
+  while (true) {
+    input_event_t event = keyboard_wait();
+    if (event.state == KEY_STATE_PRESSED) {
+      if (event.code == 'c' && event.modifiers & MOD_CONTROL) {
+        memset(buffer, ' ', size);
+        term_draw_input(buffer, size, -1);
+        size = cursor = 0;
+      } else if (event.code == 'l' && event.modifiers & MOD_CONTROL) {
+        ansi.x = ansi.y = 0;
+        lcd_clear();
+        lcd_scroll(0);
+        stdio_picocalc_out_chars(prompt, strlen(prompt));
+      } else if (event.code == KEY_ENTER) {
+        term_draw_input(buffer, size, -1);
+        buffer[size] = '\0';
+        ansi.x += size % 53;
+        ansi.y += size / 53;
+        stdio_picocalc_out_chars("\n", 1);
+        return size;
+      } else if (event.code == KEY_LEFT) {
+        if (event.modifiers & MOD_CONTROL) {
+          while (cursor > 0 && buffer[cursor] != ' ') cursor--;
+        } else if (cursor > 0) cursor -= 1;
+      } else if (event.code == KEY_RIGHT) {
+        if (event.modifiers & MOD_CONTROL) {
+          while (cursor < size && buffer[cursor] != ' ') cursor++;
+        } else if (cursor < size) cursor += 1;
+      } else if (event.code == KEY_HOME) {
+        cursor = 0;
+      } else if (event.code == KEY_END) {
+        cursor = size;
+      } else if (event.code == KEY_BACKSPACE) {
+        if (cursor > 0) {
+          cursor -= 1;
+          size -= 1;
+          memmove(buffer + cursor, buffer + cursor + 1, size - cursor);
+          buffer[size] = ' ';
+          term_draw_input(buffer, size + 1, cursor);
+        }
+      } else if (event.code >= 32 && event.code < 127) {
+        if (size < max_length - 1) {
+          if (cursor < size) {
+            memmove(buffer + cursor + 1, buffer + cursor, size - cursor);
+          }
+          buffer[cursor] = event.code;
+          size += 1;
+          cursor += 1;
+        }
+      }
+      term_draw_input(buffer, size, cursor);
+    }
+  }
+  return 0;
+}

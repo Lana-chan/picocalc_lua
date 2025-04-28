@@ -26,7 +26,6 @@ target_link_libraries(picolua
   hardware_dma
   lua 
   drivers
-  #pico_cyw43_arch_none
   hardware_flash
   hardware_irq
   hardware_adc

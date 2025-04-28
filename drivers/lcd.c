@@ -273,7 +273,7 @@ void lcd_init() {
   lcd_write_reg(0xC0, 0x17, 0x15);          // Power Control 1
   lcd_write_reg(0xC1, 0x41);                // Power Control 2
   lcd_write_reg(0xC5, 0x00, 0x12, 0x80);    // VCOM Control
-  lcd_write_reg(0x36, 0x40);                // Memory Access Control (0x48=BGR, 0x40=RGB)
+  lcd_write_reg(0x36, 0x48);                // Memory Access Control (0x48=BGR, 0x40=RGB)
   lcd_write_reg(0x3A, 0x55);                // Pixel Interface Format  16 bit colour for SPI
   lcd_write_reg(0xB0, 0x00);                // Interface Mode Control
 
