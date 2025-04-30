@@ -162,8 +162,8 @@ static void term_draw_input(char* buffer, int size, int cursor) {
     if (i == cursor) lcd_fill(palette[7], x, y, 6, 8);
     else if (i < size) lcd_draw_char(x, y, palette[7], palette[0], buffer[i]);
     else lcd_fill(palette[0], x, y, 6, 8);
-    if (ansi.y + (i + ansi.x) / 53 > 39) lcd_scroll((ansi.y + (i + ansi.x) / 53 - 39) * 8);
   }
+  if (ansi.y + (size + ansi.x) / 53 > 39) lcd_scroll((ansi.y + (size + ansi.x) / 53 - 39) * 8);
 }
 
 int term_readline(char* prompt, char* buffer, int max_length) {

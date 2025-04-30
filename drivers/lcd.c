@@ -23,8 +23,6 @@ static inline void lcd_write_spi_dc(void *buf, size_t len, int dc) {
   lcd_write_spi(buf, len);
 }
 
-static char lcd_buf[128];
-
 #define NUMARGS(...)  (sizeof((int[]){__VA_ARGS__}) / sizeof(int))
 static int lcd_write_reg_num(int len, ...) {
   u8 buf[128];
@@ -82,7 +80,18 @@ void lcd_fill(u16 color, int x, int y, int width, int height) {
   gpio_put(LCD_DC, 1);
   u16 color2 = (color >> 8) | (color << 8);
   spi_set_format(spi1, 16, 0, 0, SPI_MSB_FIRST);
-  for (int i = 0; i < width * height; i++) spi_write16_blocking(spi1, &color2, 1);
+
+  u16 buf[256];
+  int remaining = width * height;
+  int chunk_size = remaining < 256 ? remaining : 256;
+  for (int i = 0; i < chunk_size; i++) buf[i] = color;
+
+  while (remaining > chunk_size) {
+    spi_write16_blocking(spi1, buf, chunk_size);
+    remaining -= chunk_size;
+  }
+  spi_write16_blocking(spi1, buf, remaining);
+  //for (int i = 0; i < width * height; i++) spi_write16_blocking(spi1, &color2, 1);
   spi_set_format(spi1, 8, 0, 0, SPI_MSB_FIRST);
   gpio_put(LCD_CS, 1);
 }
