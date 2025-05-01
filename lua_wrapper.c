@@ -291,6 +291,7 @@ void register_wrapper(lua_State* L) {
   lua_register(L, "set_pin", l_set_pin);
   lua_register(L, "get_pin", l_get_pin);
   lua_register(L, "keyboard_wait", l_keyboard_wait);
+  lua_register(L, "keyboard_poll", l_keyboard_poll);
   lua_register(L, "draw_text", l_draw_text);
   lua_register(L, "draw_clear", l_draw_clear);
   lua_register(L, "draw_color_from_rgb", l_draw_color_from_rgb);
