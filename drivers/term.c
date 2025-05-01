@@ -156,6 +156,13 @@ stdio_driver_t stdio_picocalc = {
 #endif
 };
 
+static void term_erase_input(int size) {
+  for (int i = 0; i < size + 1; i++) {
+    int x = ((ansi.x + i) % 53) * 6, y = (ansi.y + (i + ansi.x) / 53) * 8;
+    lcd_fill(palette[0], x, y, 6, 8);
+  }
+}
+
 static void term_draw_input(char* buffer, int size, int cursor) {
   for (int i = 0; i < size + 1; i++) {
     int x = ((ansi.x + i) % 53) * 6, y = (ansi.y + (i + ansi.x) / 53) * 8;
@@ -166,16 +173,33 @@ static void term_draw_input(char* buffer, int size, int cursor) {
   if (ansi.y + (size + ansi.x) / 53 > 39) lcd_scroll((ansi.y + (size + ansi.x) / 53 - 39) * 8);
 }
 
+static char* history[32] = {0};
+static int history_current;
+
+static void history_save(int entry, char* text, int size) {
+  if (entry >= 0 && entry < 32) {
+    if (history[entry] != NULL) free(history[entry]);
+    history[entry] = strndup(text, size);
+  }
+}
+
 int term_readline(char* prompt, char* buffer, int max_length) {
   int cursor = 0;
   int size = 0;
+
+  history_current = 0;
+  if (history[0] != NULL && history[0][0] != '\0') memmove(history + 1, history, 31 * sizeof(char*));
+  
+  buffer[size] = '\0';
+  history[0] = strdup(buffer);
+
   stdio_picocalc_out_chars(prompt, strlen(prompt));
+
   while (true) {
     input_event_t event = keyboard_wait();
     if (event.state == KEY_STATE_PRESSED) {
       if (event.code == 'c' && event.modifiers & MOD_CONTROL) {
-        memset(buffer, ' ', size);
-        term_draw_input(buffer, size, -1);
+        term_erase_input(size);
         size = cursor = 0;
       } else if (event.code == 'l' && event.modifiers & MOD_CONTROL) {
         ansi.x = ansi.y = 0;
@@ -188,7 +212,20 @@ int term_readline(char* prompt, char* buffer, int max_length) {
         ansi.x += size % 53;
         ansi.y += size / 53;
         stdio_picocalc_out_chars("\n", 1);
+        history_save(0, buffer, size);
         return size;
+      } else if (event.code == KEY_UP && history_current < 31 && history[history_current + 1] != NULL) {
+        term_erase_input(size);
+        history_save(history_current, buffer, size);
+        history_current++;
+        size = cursor = strlen(history[history_current]);
+        memcpy(buffer, history[history_current], size);
+      } else if (event.code == KEY_DOWN && history_current > 0) {
+        term_erase_input(size);
+        history_save(history_current, buffer, size);
+        history_current--;
+        size = cursor = strlen(history[history_current]);
+        memcpy(buffer, history[history_current], size);
       } else if (event.code == KEY_LEFT) {
         if (event.modifiers & MOD_CONTROL) {
           while (cursor > 0 && buffer[cursor] != ' ') cursor--;
@@ -201,14 +238,11 @@ int term_readline(char* prompt, char* buffer, int max_length) {
         cursor = 0;
       } else if (event.code == KEY_END) {
         cursor = size;
-      } else if (event.code == KEY_BACKSPACE) {
-        if (cursor > 0) {
-          cursor -= 1;
-          size -= 1;
-          memmove(buffer + cursor, buffer + cursor + 1, size - cursor);
-          buffer[size] = ' ';
-          term_draw_input(buffer, size + 1, cursor);
-        }
+      } else if (event.code == KEY_BACKSPACE && cursor > 0) {
+        term_erase_input(size);
+        cursor -= 1;
+        size -= 1;
+        memmove(buffer + cursor, buffer + cursor + 1, size - cursor);
       } else if (event.code >= 32 && event.code < 127) {
         if (size < max_length - 1) {
           if (cursor < size) {

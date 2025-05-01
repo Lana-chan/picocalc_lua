@@ -1,19 +1,16 @@
 #pragma once
 
-typedef unsigned int u32;
-typedef unsigned short u16;
-typedef unsigned char u8;
+#include "types.h"
 
 #define WIDTH 320
 #define HEIGHT 320
 #define MEM_HEIGHT 480 
-//(345600 / (WIDTH * HEIGHT * 2))
 
 #define RED(a)      ((((a) & 0xf800) >> 11) << 3)
 #define GREEN(a)    ((((a) & 0x07e0) >> 5) << 2)
 #define BLUE(a)     (((a) & 0x001f) << 3)
 
-#define RGB(r,g,b) ((u16)((r) << 11 | (g) << 5 | (b)))
+#define RGB(r,g,b) ((u16)(((r) >> 3) << 11 | ((g) >> 2) << 5 | (b >> 3)))
 
 void lcd_draw(u16* pixels, int x, int y, int width, int height);
 void lcd_fill(u16 color, int x, int y, int width, int height);

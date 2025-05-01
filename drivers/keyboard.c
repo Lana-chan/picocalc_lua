@@ -9,7 +9,7 @@
 #define KBD_MOD    i2c1
 #define KBD_SDA    6
 #define KBD_SCL    7
-#define KBD_SPEED  10000 // if dual i2c, then the speed of keyboard i2c should be 10khz
+#define KBD_SPEED  20000 // if dual i2c, then the speed of keyboard i2c should be 10khz
 #define KBD_ADDR   0x1F
 
 // Commands defined by the keyboard driver
@@ -107,8 +107,8 @@ input_event_t keyboard_poll() {
 input_event_t keyboard_wait() {
   input_event_t event;
   do { 
-    sleep_ms(1);
     event = keyboard_poll();
+    if (event.code == 0) sleep_ms(1);
   } while (event.code == 0);
   return event;
 }

@@ -11,6 +11,7 @@ add_subdirectory(drivers)
 
 add_executable(picolua
   picolua.c
+  lua_wrapper.c
   #main.c
 )
 

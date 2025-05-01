@@ -5,60 +5,18 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #include <stdio.h>
-
-#include "hardware/watchdog.h"
-#include "pico/stdlib.h"
-#include "pico/bootrom.h"
+#include <string.h>
 
 #include "drivers/lcd.h"
 #include "drivers/keyboard.h"
 #include "drivers/term.h"
+#include "lua_wrapper.h"
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
 #define PROMPT "lua> "
-
-// reset()
-static int l_reset(lua_State *L) {
-    watchdog_reboot(0, 0, 0);
-    return 0;
-}
-
-// bootsel()
-static int l_bootsel(lua_State *L) {
-    reset_usb_boot(0, 0);
-    return 0;
-}
-
-// set_output(pin, bool)
-static int l_set_output(lua_State *L) {
-    int pin = lua_tointeger(L, 1);
-    int output = lua_toboolean(L, 2);
-    lua_pop(L, 2);
-    gpio_init(pin);
-    gpio_set_dir(pin, output);
-    return 0;
-}
-
-// set_pin(pin, bool)
-static int l_set_pin(lua_State *L) {
-    int pin = lua_tointeger(L, 1);
-    int state = lua_toboolean(L, 2);
-    lua_pop(L, 2);
-    gpio_put(pin, state == 1);
-    return 0;
-}
-
-// bool get_pin(pin)
-static int l_get_pin(lua_State *L) {
-    int pin = lua_tointeger(L, 1);
-    int state = gpio_get(pin);
-    lua_pop(L, 1);
-    lua_pushboolean(L, state);
-    return 1;
-}
 
 static void l_print (lua_State *L) {
   int n = lua_gettop(L);
@@ -68,6 +26,11 @@ static void l_print (lua_State *L) {
     lua_insert(L, 1);
     if (lua_pcall(L, n, 0, 0) != LUA_OK) lua_writestringerror("error calling 'print' (%s)", lua_tostring(L, -1));
   }
+}
+
+void check_interrupt(lua_State *L, lua_Debug *ar) {
+  input_event_t event = keyboard_poll();
+  if (event.code == KEY_BREAK) luaL_error(L, "error: interrupted");
 }
 
 int main() {
@@ -88,11 +51,8 @@ int main() {
   luaL_openlibs(L);
   //luaL_buffinit(L, &buf);
 
-  lua_register(L, "reset", l_reset);
-  lua_register(L, "bootsel", l_bootsel);
-  lua_register(L, "set_output", l_set_output);
-  lua_register(L, "set_pin", l_set_pin);
-  lua_register(L, "get_pin", l_get_pin);
+  register_wrapper(L);
+  lua_sethook(L, check_interrupt, LUA_MASKCOUNT, 1000);
 
   printf("Welcome to \x1b[33mpico lua\x1b[m\n");
   while (1) {
@@ -110,12 +70,12 @@ int main() {
     } else lua_remove(L, -2);
     if (status != LUA_OK) {
       const char *msg = lua_tostring(L, -1);
-      lua_writestringerror("parse error: %s\n", msg);
+      lua_writestringerror("%s\n", msg);
     } else {
       status = lua_pcall(L, 0, num_results, 0);
       if(status != LUA_OK) {
         const char *msg = lua_tostring(L, -1);
-        lua_writestringerror("execute error: %s\n", msg);
+        lua_writestringerror("%s\n", msg);
       } else {
         printf("\x1b[36m");
         l_print(L);

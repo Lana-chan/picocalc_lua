@@ -35,13 +35,9 @@ Hold BOOTSEL button, connect USB.
 
 ## Examples
 
-    lua> print("hello lua")
-    <Ctrl-D>
-    hello lua
     lua> a=2
-    b=2
+    lua> b=2
     print(a*b)
-    <Ctrl-D>
     4
 
 ## Binding to Pico SDK
