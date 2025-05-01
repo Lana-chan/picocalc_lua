@@ -8,10 +8,12 @@ pico_sdk_init()
 
 add_subdirectory(lua-5.4.6/src)
 add_subdirectory(drivers)
+add_subdirectory(pico_fatfs)
 
 add_executable(picolua
   picolua.c
   lua_wrapper.c
+  fs_wrapper.c
   #main.c
 )
 
@@ -25,14 +27,19 @@ target_link_libraries(picolua
   hardware_i2c
   hardware_spi
   hardware_dma
+  #hardware_flash
+  #hardware_adc
+  #hardware_exception
+  #hardware_pio
+  #pico_multicore
   lua 
   drivers
-  hardware_flash
-  hardware_irq
-  hardware_adc
-  hardware_exception
-  hardware_pio
-  pico_multicore
+  pico_fatfs
   )
 
 pico_add_extra_outputs(picolua)
+
+add_custom_target(flash
+    COMMAND cp picolua.uf2 /run/media/favre/RP2350/
+    DEPENDS picolua
+)

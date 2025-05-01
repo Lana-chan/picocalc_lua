@@ -118,9 +118,9 @@ char keyboard_getchar() {
 }
 
 int keyboard_init() {
+  i2c_init(KBD_MOD, KBD_SPEED);
   gpio_set_function(KBD_SCL, GPIO_FUNC_I2C);
   gpio_set_function(KBD_SDA, GPIO_FUNC_I2C);
-  i2c_init(KBD_MOD, KBD_SPEED);
   gpio_pull_up(KBD_SCL);
   gpio_pull_up(KBD_SDA);
   keyboard_modifiers = 0;

@@ -6,11 +6,13 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "drivers/lcd.h"
 #include "drivers/keyboard.h"
 #include "drivers/term.h"
 #include "lua_wrapper.h"
+#include "fs_wrapper.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -35,7 +37,6 @@ void check_interrupt(lua_State *L, lua_Debug *ar) {
 
 int main() {
   lua_State *L;
-  //luaL_Buffer buf;
   int status;
   size_t len;
   char ch;
@@ -46,13 +47,24 @@ int main() {
   lcd_on();
   keyboard_init();
   stdio_picocalc_init(); 
+  fs_init();
 
   L = luaL_newstate();
+  lua_sethook(L, check_interrupt, LUA_MASKCOUNT, 10000);
   luaL_openlibs(L);
-  //luaL_buffinit(L, &buf);
 
   register_wrapper(L);
-  lua_sethook(L, check_interrupt, LUA_MASKCOUNT, 1000);
+  register_fs_wrapper(L);
+  fs_mount();
+
+  char* script = fs_readfile("main.lua");
+  if (script != NULL) {
+    if (luaL_loadbuffer(L, script, strlen(script), "=main.lua") != LUA_OK || lua_pcall(L, 0, 0, 0) != LUA_OK) {
+      const char *msg = lua_tostring(L, -1);
+      lua_writestringerror("%s\n", msg);
+    }
+    free(script);
+  }
 
   printf("Welcome to \x1b[33mpico lua\x1b[m\n");
   while (1) {
@@ -60,19 +72,19 @@ int main() {
     int size = term_readline(PROMPT, line, 256);
 
     lua_settop(L, 0);
-    int num_results = 1;
+    //int num_results = 1;
     const char *retline = lua_pushfstring(L, "return %s;", line);
     status = luaL_loadbuffer(L, retline, strlen(retline), "=stdin");
     if (status != LUA_OK) {
       lua_pop(L, 2);
       status = luaL_loadbuffer(L, line, strlen(line), "=stdin");
-      num_results = 0;
+      //num_results = 0;
     } else lua_remove(L, -2);
     if (status != LUA_OK) {
       const char *msg = lua_tostring(L, -1);
       lua_writestringerror("%s\n", msg);
     } else {
-      status = lua_pcall(L, 0, num_results, 0);
+      status = lua_pcall(L, 0, LUA_MULTRET, 0);
       if(status != LUA_OK) {
         const char *msg = lua_tostring(L, -1);
         lua_writestringerror("%s\n", msg);

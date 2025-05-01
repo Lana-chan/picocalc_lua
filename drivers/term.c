@@ -66,7 +66,10 @@ static void out_char(char c) {
     erase_line(ansi.y);
   } else if (c == '\b') ansi.x -= 1;
   //else if (c == '\r') ansi.x = 0;
-  else if (c >= 32 && c < 127) {
+  else if (c == '\t') {
+    lcd_draw_char(ansi.x * 6, ansi.y * 8, palette[ansi.fg], palette[ansi.bg], ' ');
+    ansi.x += 1;
+  } else if (c >= 32 && c < 127) {
     lcd_draw_char(ansi.x * 6, ansi.y * 8, palette[ansi.fg], palette[ansi.bg], c);
     ansi.x += 1;
   }
@@ -181,6 +184,10 @@ static void history_save(int entry, char* text, int size) {
     if (history[entry] != NULL) free(history[entry]);
     history[entry] = strndup(text, size);
   }
+}
+
+char** term_get_history() {
+  return history;
 }
 
 int term_readline(char* prompt, char* buffer, int max_length) {
