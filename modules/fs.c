@@ -1,11 +1,14 @@
 #include <stdlib.h>
 
-#include "pico_fatfs/tf_card.h"
-#include "pico_fatfs/fatfs/ff.h"
+#include "../pico_fatfs/tf_card.h"
+#include "../pico_fatfs/fatfs/ff.h"
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+
+#include "modules.h"
+#include "../drivers/fs.h"
 
 static char* fs_error_strings[20] = {
   "Succeeded",
@@ -252,72 +255,30 @@ static int l_fs_getfree(lua_State* L) {
 //f_setlabel - Set volume label
 //f_setcp - Set active code page
 
-void register_fs_wrapper(lua_State* L) {
-  lua_register(L, "fs_open", l_fs_open);
-  lua_register(L, "fs_close", l_fs_close);
-  lua_register(L, "fs_read", l_fs_read);
-  lua_register(L, "fs_write", l_fs_write);
-  lua_register(L, "fs_seek", l_fs_seek);
-  lua_register(L, "fs_tell", l_fs_tell);
-  lua_register(L, "fs_eof", l_fs_eof);
-  lua_register(L, "fs_size", l_fs_size);
-  lua_register(L, "fs_sync", l_fs_sync);
+void fs_register_wrapper(lua_State* L) {
+  lua_newtable(L);
+  lua_table_register(L, "open", l_fs_open);
+  lua_table_register(L, "close", l_fs_close);
+  lua_table_register(L, "read", l_fs_read);
+  lua_table_register(L, "write", l_fs_write);
+  lua_table_register(L, "seek", l_fs_seek);
+  lua_table_register(L, "tell", l_fs_tell);
+  lua_table_register(L, "eof", l_fs_eof);
+  lua_table_register(L, "size", l_fs_size);
+  lua_table_register(L, "sync", l_fs_sync);
 
-  lua_register(L, "fs_opendir", l_fs_opendir);
-  lua_register(L, "fs_closedir", l_fs_closedir);
-  lua_register(L, "fs_readdir", l_fs_readdir);
+  lua_table_register(L, "opendir", l_fs_opendir);
+  lua_table_register(L, "closedir", l_fs_closedir);
+  lua_table_register(L, "readdir", l_fs_readdir);
 
-  lua_register(L, "fs_stat", l_fs_stat);
-  lua_register(L, "fs_unlink", l_fs_unlink);
-  lua_register(L, "fs_rename", l_fs_rename);
-  lua_register(L, "fs_mkdir", l_fs_mkdir);
-  lua_register(L, "fs_chdir", l_fs_chdir);
+  lua_table_register(L, "stat", l_fs_stat);
+  lua_table_register(L, "unlink", l_fs_unlink);
+  lua_table_register(L, "rename", l_fs_rename);
+  lua_table_register(L, "mkdir", l_fs_mkdir);
+  lua_table_register(L, "chdir", l_fs_chdir);
   //lua_register(L, "fs_getcwd", l_fs_getcwd);
 
-  lua_register(L, "fs_mount", l_fs_mount);
-  lua_register(L, "fs_getfree", l_fs_getfree);
+  lua_table_register(L, "mount", l_fs_mount);
+  lua_table_register(L, "getfree", l_fs_getfree);
+  lua_setglobal(L, "fs");
 }
-
-static FATFS global_fs;
-
-void fs_init() {
-  pico_fatfs_spi_config_t config = {
-    .spi_inst = spi0,
-    .clk_slow = CLK_SLOW_DEFAULT,
-    .clk_fast = CLK_FAST_DEFAULT,
-    .pin_miso = 16,
-    .pin_cs = 17,
-    .pin_sck = 18,
-    .pin_mosi = 19,
-    .pullup = true,
-  };
-  pico_fatfs_set_config(&config);
-}
-
-int fs_mount() {
-  return f_mount(&global_fs, "", 0) == FR_OK;
-}
-
-char* fs_readfile(const char* path) {
-  FIL fp;
-  FRESULT result = f_open(&fp, path, FA_READ);
-  if (result != FR_OK) return NULL;
-  FSIZE_t size = f_size(&fp);
-  char* buffer = malloc(size + 1);
-  if (buffer == NULL) {
-    f_close(&fp);
-    return NULL;
-  }
-  UINT read;
-  result = f_read(&fp, buffer, size, &read);
-  if (result != FR_OK) {
-    f_close(&fp);
-    return NULL;
-  }
-  buffer[size] = '\0';
-  return buffer;
-}
-
-int fs_writefile(const char* path, const char* data, int length) {
-}
-

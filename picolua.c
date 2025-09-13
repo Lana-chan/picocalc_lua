@@ -11,8 +11,9 @@
 #include "drivers/lcd.h"
 #include "drivers/keyboard.h"
 #include "drivers/term.h"
-#include "lua_wrapper.h"
-#include "fs_wrapper.h"
+#include "drivers/fs.h"
+
+#include "modules/modules.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -53,8 +54,7 @@ int main() {
   lua_sethook(L, check_interrupt, LUA_MASKCOUNT, 10000);
   luaL_openlibs(L);
 
-  register_wrapper(L);
-  register_fs_wrapper(L);
+  modules_register_wrappers(L);
   fs_mount();
 
   char* script = fs_readfile("main.lua");

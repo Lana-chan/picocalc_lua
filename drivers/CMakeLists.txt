@@ -16,6 +16,7 @@ target_sources(drivers INTERFACE
         lcd.c
         term.c
         draw.c
+        fs.c
         )
 
 target_link_libraries(drivers INTERFACE  pico_stdlib hardware_spi hardware_i2c)

@@ -9,11 +9,12 @@ pico_sdk_init()
 add_subdirectory(lua-5.4.6/src)
 add_subdirectory(drivers)
 add_subdirectory(pico_fatfs)
+add_subdirectory(modules)
 
 add_executable(picolua
   picolua.c
-  lua_wrapper.c
-  fs_wrapper.c
+  #lua_wrapper.c
+  #fs_wrapper.c
   #main.c
 )
 
@@ -35,6 +36,7 @@ target_link_libraries(picolua
   lua 
   drivers
   pico_fatfs
+  modules
   )
 
 pico_add_extra_outputs(picolua)

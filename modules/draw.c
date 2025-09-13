@@ -9,90 +9,9 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "drivers/keyboard.h"
-#include "drivers/lcd.h"
-#include "drivers/draw.h"
-#include "drivers/term.h"
-
-void _link() {} // TODO: handle those properly
-void _unlink() {}
-
-uint32_t get_total_memory() {
-   extern char __StackLimit, __bss_end__;
-   return &__StackLimit  - &__bss_end__;
-}
-
-uint32_t get_free_memory() {
-   struct mallinfo m = mallinfo();
-   return get_total_memory() - m.uordblks;
-}
-
-static int l_get_total_memory(lua_State* L) {
-  lua_pushinteger(L, get_total_memory());
-  return 1;
-}
-
-static int l_get_free_memory(lua_State* L) {
-  lua_pushinteger(L, get_free_memory());
-  return 1;
-}
-
-static int l_reset(lua_State *L) {
-    watchdog_reboot(0, 0, 0);
-    return 0;
-}
-
-static int l_bootsel(lua_State *L) {
-    reset_usb_boot(0, 0);
-    return 0;
-}
-
-static int l_set_output(lua_State *L) {
-    int pin = lua_tointeger(L, 1);
-    int output = lua_toboolean(L, 2);
-
-    gpio_init(pin);
-    gpio_set_dir(pin, output);
-    return 0;
-}
-
-static int l_set_pin(lua_State *L) {
-    int pin = lua_tointeger(L, 1);
-    int state = lua_toboolean(L, 2);
-
-    gpio_put(pin, state == 1);
-    return 0;
-}
-
-static int l_get_pin(lua_State *L) {
-    int pin = lua_tointeger(L, 1);
-    int state = gpio_get(pin);
-
-    lua_pushboolean(L, state);
-    return 1;
-}
-
-static int l_keyboard_poll(lua_State* L) {
-  input_event_t event = keyboard_poll();
-  lua_pushinteger(L, event.state);
-  lua_pushinteger(L, event.modifiers);
-  lua_pushinteger(L, event.code);
-  return 3;
-}
-
-static int l_keyboard_wait(lua_State* L) {
-  input_event_t event = keyboard_wait();
-  lua_pushinteger(L, event.state);
-  lua_pushinteger(L, event.modifiers);
-  lua_pushinteger(L, event.code);
-  return 3;
-}
-
-static int l_get_battery(lua_State* L) {
-  int battery = get_battery();
-  lua_pushinteger(L, battery);
-  return 1;
-}
+#include "modules.h"
+#include "../drivers/lcd.h"
+#include "../drivers/draw.h"
 
 static int l_draw_text(lua_State* L) {
   int x = luaL_checknumber(L, 1);
@@ -288,33 +207,25 @@ static int l_draw_triangle_shaded(lua_State* L) {
   return 0;
 }
 
-void register_wrapper(lua_State* L) {
-  lua_register(L, "get_total_memory", l_get_total_memory);
-  lua_register(L, "get_free_memory", l_get_free_memory);
-  lua_register(L, "reset", l_reset);
-  lua_register(L, "bootsel", l_bootsel);
-  lua_register(L, "set_output", l_set_output);
-  lua_register(L, "set_pin", l_set_pin);
-  lua_register(L, "get_pin", l_get_pin);
-  lua_register(L, "keyboard_wait", l_keyboard_wait);
-  lua_register(L, "keyboard_poll", l_keyboard_poll);
-  lua_register(L, "get_battery", l_get_battery);
-  lua_register(L, "draw_text", l_draw_text);
-  lua_register(L, "draw_clear", l_draw_clear);
-  lua_register(L, "draw_color_from_rgb", l_draw_color_from_rgb);
-  lua_register(L, "draw_color_to_rgb", l_draw_color_to_rgb);
-  lua_register(L, "draw_color_from_hsv", l_draw_color_from_hsv);
-  lua_register(L, "draw_color_to_hsv", l_draw_color_to_hsv);
-  lua_register(L, "draw_color_add", l_draw_color_add);
-  lua_register(L, "draw_color_subtract", l_draw_color_subtract);
-  lua_register(L, "draw_color_mul", l_draw_color_mul);
-  lua_register(L, "draw_point", l_draw_point);
-  lua_register(L, "draw_rect", l_draw_rect);
-  lua_register(L, "draw_fill_rect", l_draw_fill_rect);
-  lua_register(L, "draw_line", l_draw_line);
-  lua_register(L, "draw_circle", l_draw_circle);
-  lua_register(L, "draw_fill_circle", l_draw_fill_circle);
-  lua_register(L, "draw_polygon", l_draw_polygon);
-  lua_register(L, "draw_fill_polygon", l_draw_fill_polygon);
-  lua_register(L, "draw_triangle_shaded", l_draw_triangle_shaded);
+void draw_register_wrapper(lua_State* L) {
+  lua_newtable(L);
+  lua_table_register(L, "text", l_draw_text);
+  lua_table_register(L, "clear", l_draw_clear);
+  lua_table_register(L, "color_from_rgb", l_draw_color_from_rgb);
+  lua_table_register(L, "color_to_rgb", l_draw_color_to_rgb);
+  lua_table_register(L, "color_from_hsv", l_draw_color_from_hsv);
+  lua_table_register(L, "color_to_hsv", l_draw_color_to_hsv);
+  lua_table_register(L, "color_add", l_draw_color_add);
+  lua_table_register(L, "color_subtract", l_draw_color_subtract);
+  lua_table_register(L, "color_mul", l_draw_color_mul);
+  lua_table_register(L, "point", l_draw_point);
+  lua_table_register(L, "rect", l_draw_rect);
+  lua_table_register(L, "fill_rect", l_draw_fill_rect);
+  lua_table_register(L, "line", l_draw_line);
+  lua_table_register(L, "circle", l_draw_circle);
+  lua_table_register(L, "fill_circle", l_draw_fill_circle);
+  lua_table_register(L, "polygon", l_draw_polygon);
+  lua_table_register(L, "fill_polygon", l_draw_fill_polygon);
+  lua_table_register(L, "triangle_shaded", l_draw_triangle_shaded);
+  lua_setglobal(L, "draw");
 }
