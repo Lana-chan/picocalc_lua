@@ -176,3 +176,4 @@ input_event_t keyboard_poll();
 input_event_t keyboard_wait();
 char keyboard_getchar();
 
+int get_battery();

@@ -127,3 +127,9 @@ int keyboard_init() {
   while (i2c_kbd_read_key() != 0); // Drain queue
 }
 
+int get_battery() {
+  if (!i2c_kbd_command(REG_ID_BAT)) return -1;
+  int result = 0;
+  if (!i2c_kbd_read((unsigned char*)&result, 2)) return -1;
+  return result >> 8;
+}

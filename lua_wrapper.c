@@ -88,6 +88,12 @@ static int l_keyboard_wait(lua_State* L) {
   return 3;
 }
 
+static int l_get_battery(lua_State* L) {
+  int battery = get_battery();
+  lua_pushinteger(L, battery);
+  return 1;
+}
+
 static int l_draw_text(lua_State* L) {
   int x = luaL_checknumber(L, 1);
   int y = luaL_checknumber(L, 2);
@@ -292,6 +298,7 @@ void register_wrapper(lua_State* L) {
   lua_register(L, "get_pin", l_get_pin);
   lua_register(L, "keyboard_wait", l_keyboard_wait);
   lua_register(L, "keyboard_poll", l_keyboard_poll);
+  lua_register(L, "get_battery", l_get_battery);
   lua_register(L, "draw_text", l_draw_text);
   lua_register(L, "draw_clear", l_draw_clear);
   lua_register(L, "draw_color_from_rgb", l_draw_color_from_rgb);

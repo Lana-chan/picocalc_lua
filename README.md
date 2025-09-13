@@ -84,9 +84,10 @@ Complete API (in addition to standard lua stuff)
     set_pin(pin, value)
     value = get_pin(pin)
 
-    -- keyboard input
+    -- keyboard firmware i/o
     state, modifiers, key = keyboard_wait()
     state, modifiers, key = keyboard_poll() -- key = 0 if no event
+    battery_percentage = get_battery()
 
     -- drawing
     draw_text(x, y, fg, bg, text)
