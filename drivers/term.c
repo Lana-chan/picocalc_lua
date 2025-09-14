@@ -1,9 +1,12 @@
+#include "term.h"
+
 #include "pico/stdlib.h"
 #include "pico/stdio.h"
 #include "pico/stdio/driver.h"
 #include <stdlib.h>
 #include <string.h>
 
+#include "font.h"
 #include "lcd.h"
 #include "keyboard.h"
 
@@ -46,16 +49,24 @@ static ansi_t ansi = {
   .state=AnsiNone, .x=0, .y=0, .fg=7, .bg=0, .stack={0}, .stack_size=0
 };
 
+static int ansi_len_to_lcd_x(int len) {
+  return ((ansi.x + len) % TERM_WIDTH) * GLYPH_WIDTH;
+}
+
+static int ansi_len_to_lcd_y(int len) {
+  return (ansi.y + (len + ansi.x) / TERM_WIDTH) * GLYPH_HEIGHT;
+}
+
 static void erase_line(int y) {
-  lcd_fill(palette[0], 0, y * 8, 320, 8);
+  lcd_fill(palette[0], 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
 }
 
 static void draw_cursor(int x, int y) {
-  lcd_fill(palette[7], x * 6, y * 8, 6, 8);
+  lcd_fill(palette[7], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
 }
 
 static void erase_cursor(int x, int y) {
-  lcd_fill(palette[0], x * 6, y * 8, 6, 8);
+  lcd_fill(palette[0], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
 }
 
 static void out_char(char c) {
@@ -67,19 +78,19 @@ static void out_char(char c) {
   } else if (c == '\b') ansi.x -= 1;
   //else if (c == '\r') ansi.x = 0;
   else if (c == '\t') {
-    lcd_draw_char(ansi.x * 6, ansi.y * 8, palette[ansi.fg], palette[ansi.bg], ' ');
+    lcd_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, palette[ansi.fg], palette[ansi.bg], ' ');
     ansi.x += 1;
   } else if (c >= 32 && c < 127) {
-    lcd_draw_char(ansi.x * 6, ansi.y * 8, palette[ansi.fg], palette[ansi.bg], c);
+    lcd_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, palette[ansi.fg], palette[ansi.bg], c);
     ansi.x += 1;
   }
-  if (ansi.x >= 53) {
+  if (ansi.x >= TERM_WIDTH) {
     ansi.x = 0;
     ansi.y += 1;
     erase_line(ansi.y);
   }
-  if (ansi.y > 39) {
-    lcd_scroll((ansi.y - 39) * 8);
+  if (ansi.y >= TERM_HEIGHT) {
+    lcd_scroll((ansi.y - (TERM_HEIGHT - 1)) * GLYPH_HEIGHT);
   }
   draw_cursor(ansi.x, ansi.y);
 }
@@ -161,19 +172,19 @@ stdio_driver_t stdio_picocalc = {
 
 static void term_erase_input(int size) {
   for (int i = 0; i < size + 1; i++) {
-    int x = ((ansi.x + i) % 53) * 6, y = (ansi.y + (i + ansi.x) / 53) * 8;
-    lcd_fill(palette[0], x, y, 6, 8);
+    int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
+    lcd_fill(palette[0], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
   }
 }
 
 static void term_draw_input(char* buffer, int size, int cursor) {
   for (int i = 0; i < size + 1; i++) {
-    int x = ((ansi.x + i) % 53) * 6, y = (ansi.y + (i + ansi.x) / 53) * 8;
-    if (i == cursor) lcd_fill(palette[7], x, y, 6, 8);
+    int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
+    if (i == cursor) lcd_fill(palette[7], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
     else if (i < size) lcd_draw_char(x, y, palette[7], palette[0], buffer[i]);
-    else lcd_fill(palette[0], x, y, 6, 8);
+    else lcd_fill(palette[0], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
   }
-  if (ansi.y + (size + ansi.x) / 53 > 39) lcd_scroll((ansi.y + (size + ansi.x) / 53 - 39) * 8);
+  if (ansi.y + (size + ansi.x) / TERM_WIDTH >= TERM_HEIGHT) lcd_scroll((ansi.y + (size + ansi.x) / TERM_WIDTH - (TERM_HEIGHT-1)) * GLYPH_HEIGHT);
 }
 
 static char* history[32] = {0};
@@ -216,8 +227,8 @@ int term_readline(char* prompt, char* buffer, int max_length) {
       } else if (event.code == KEY_ENTER) {
         term_draw_input(buffer, size, -1);
         buffer[size] = '\0';
-        ansi.x += size % 53;
-        ansi.y += size / 53;
+        ansi.x += size % TERM_WIDTH;
+        ansi.y += size / TERM_WIDTH;
         stdio_picocalc_out_chars("\n", 1);
         history_save(0, buffer, size);
         return size;
