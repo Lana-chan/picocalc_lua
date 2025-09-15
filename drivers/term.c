@@ -148,7 +148,6 @@ static void stdio_picocalc_out_chars(const char *buf, int length) {
 }
 
 static int stdio_picocalc_in_chars(char *buf, int length) {
-  sleep_ms(10);
   input_event_t event = keyboard_poll();
   if (event.state == KEY_STATE_PRESSED && event.code > 0) {
     if (event.modifiers & MOD_CONTROL && event.code >= 'a' && event.code < 'z') {
@@ -187,6 +186,12 @@ static void term_draw_input(char* buffer, int size, int cursor) {
   if (ansi.y + (size + ansi.x) / TERM_WIDTH >= TERM_HEIGHT) lcd_scroll((ansi.y + (size + ansi.x) / TERM_WIDTH - (TERM_HEIGHT-1)) * GLYPH_HEIGHT);
 }
 
+void term_clear() {
+  ansi.x = ansi.y = 0;
+  lcd_clear();
+  lcd_scroll(0);
+}
+
 static char* history[32] = {0};
 static int history_current;
 
@@ -220,9 +225,7 @@ int term_readline(char* prompt, char* buffer, int max_length) {
         term_erase_input(size);
         size = cursor = 0;
       } else if (event.code == 'l' && event.modifiers & MOD_CONTROL) {
-        ansi.x = ansi.y = 0;
-        lcd_clear();
-        lcd_scroll(0);
+        term_clear();
         stdio_picocalc_out_chars(prompt, strlen(prompt));
       } else if (event.code == KEY_ENTER) {
         term_draw_input(buffer, size, -1);

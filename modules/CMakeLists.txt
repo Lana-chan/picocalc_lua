@@ -16,6 +16,7 @@ target_sources(modules INTERFACE
         sys.c
         fs.c
         draw.c
+        term.c
         )
 
 target_link_libraries(modules INTERFACE  pico_stdlib hardware_spi hardware_i2c)
