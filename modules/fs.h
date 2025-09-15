@@ -2,4 +2,4 @@
 
 #include <lua.h>
 
-void fs_register_wrapper(lua_State* L);
+int luaopen_fs(lua_State* L);
