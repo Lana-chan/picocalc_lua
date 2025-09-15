@@ -29,6 +29,8 @@ enum {
   REG_ID_C64_JS = 0x0d,  // joystick io bits
 };
 
+input_event_t last_event;
+
 static int keyboard_modifiers;
 
 static int i2c_kbd_write(unsigned char* data, int size) {
@@ -100,8 +102,10 @@ input_event_t keyboard_poll() {
   unsigned short value = i2c_kbd_read_key();
   update_modifiers(value);
   keyboard_check_special_keys(value);
+  input_event_t event = (input_event_t) {value & 0xff, keyboard_modifiers, value >> 8};
+  if (event.code != KEY_NONE) last_event = event;
   //if (value != 0 && (value >> 8) != KEY_ALT && (value >> 8) != KEY_CONTROL) printf("key = %d (%02x) / state = %d / modifiers = %02x\n", value >> 8, value >> 8, value & 0xff, keyboard_modifiers);
-  return (input_event_t) {value & 0xff, keyboard_modifiers, value >> 8};
+  return event;
 }
 
 input_event_t keyboard_wait() {

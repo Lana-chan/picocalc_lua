@@ -32,8 +32,7 @@ static void l_print (lua_State *L) {
 }
 
 void check_interrupt(lua_State *L, lua_Debug *ar) {
-  input_event_t event = keyboard_poll();
-  if (event.code == KEY_BREAK) luaL_error(L, "error: interrupted");
+  if (last_event.code == KEY_BREAK) luaL_error(L, "error: interrupted");
 }
 
 int main() {
@@ -51,7 +50,7 @@ int main() {
   fs_init();
 
   L = luaL_newstate();
-  lua_sethook(L, check_interrupt, LUA_MASKCOUNT, 10000);
+  lua_sethook(L, check_interrupt, LUA_MASKCOUNT, 10);
   luaL_openlibs(L);
 
   modules_register_wrappers(L);
