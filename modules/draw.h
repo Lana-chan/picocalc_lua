@@ -2,4 +2,4 @@
 
 #include <lua.h>
 
-void draw_register_wrapper(lua_State* L);
+int luaopen_draw(lua_State *L);

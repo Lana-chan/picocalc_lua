@@ -1,15 +1,10 @@
 #include <stdlib.h>
 #include <malloc.h>
 
-#include "hardware/watchdog.h"
-#include "pico/stdlib.h"
-#include "pico/bootrom.h"
-
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "modules.h"
 #include "../drivers/lcd.h"
 #include "../drivers/draw.h"
 
@@ -149,7 +144,7 @@ static int l_draw_polygon(lua_State* L) {
   if (!lua_istable(L, 1)) return luaL_error(L, "Expected table for argument #1 (points)");
   int num_coords = luaL_len(L, 1);
   if (num_coords % 2 != 0) return luaL_error(L, "Points table must contain an even number of values (x, y pairs)");
-  int n = num_coords / 2;
+  int n = num_coords;
   float *points = (float *) malloc(num_coords * sizeof(float));
   if (!points) return luaL_error(L, "Memory allocation failed");
 
@@ -207,25 +202,30 @@ static int l_draw_triangle_shaded(lua_State* L) {
   return 0;
 }
 
-void draw_register_wrapper(lua_State* L) {
-  lua_newtable(L);
-  lua_table_register(L, "text", l_draw_text);
-  lua_table_register(L, "clear", l_draw_clear);
-  lua_table_register(L, "color_from_rgb", l_draw_color_from_rgb);
-  lua_table_register(L, "color_to_rgb", l_draw_color_to_rgb);
-  lua_table_register(L, "color_from_hsv", l_draw_color_from_hsv);
-  lua_table_register(L, "color_to_hsv", l_draw_color_to_hsv);
-  lua_table_register(L, "color_add", l_draw_color_add);
-  lua_table_register(L, "color_subtract", l_draw_color_subtract);
-  lua_table_register(L, "color_mul", l_draw_color_mul);
-  lua_table_register(L, "point", l_draw_point);
-  lua_table_register(L, "rect", l_draw_rect);
-  lua_table_register(L, "fill_rect", l_draw_fill_rect);
-  lua_table_register(L, "line", l_draw_line);
-  lua_table_register(L, "circle", l_draw_circle);
-  lua_table_register(L, "fill_circle", l_draw_fill_circle);
-  lua_table_register(L, "polygon", l_draw_polygon);
-  lua_table_register(L, "fill_polygon", l_draw_fill_polygon);
-  lua_table_register(L, "triangle_shaded", l_draw_triangle_shaded);
-  lua_setglobal(L, "draw");
+int luaopen_draw(lua_State *L) {
+  static const luaL_Reg drawlib_f [] = {
+    {"text", l_draw_text},
+    {"clear", l_draw_clear},
+    {"color_from_rgb", l_draw_color_from_rgb},
+    {"color_to_rgb", l_draw_color_to_rgb},
+    {"color_from_hsv", l_draw_color_from_hsv},
+    {"color_to_hsv", l_draw_color_to_hsv},
+    {"color_add", l_draw_color_add},
+    {"color_subtract", l_draw_color_subtract},
+    {"color_mul", l_draw_color_mul},
+    {"point", l_draw_point},
+    {"rect", l_draw_rect},
+    {"fill_rect", l_draw_fill_rect},
+    {"line", l_draw_line},
+    {"circle", l_draw_circle},
+    {"fill_circle", l_draw_fill_circle},
+    {"polygon", l_draw_polygon},
+    {"fill_polygon", l_draw_fill_polygon},
+    {"triangle_shaded", l_draw_triangle_shaded},
+    {NULL, NULL}
+  };
+  
+  luaL_newlib(L, drawlib_f);
+  
+  return 1;
 }

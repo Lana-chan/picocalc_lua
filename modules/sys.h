@@ -2,4 +2,4 @@
 
 #include <lua.h>
 
-void sys_register_wrapper(lua_State* L);
+int luaopen_sys(lua_State *L);

@@ -1,14 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../pico_fatfs/tf_card.h"
-#include "../pico_fatfs/fatfs/ff.h"
-
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "modules.h"
+#include "../pico_fatfs/tf_card.h"
+#include "../pico_fatfs/fatfs/ff.h"
+
 #include "../drivers/fs.h"
 
 #define filehandle "FileHandle"
@@ -384,7 +383,7 @@ getCapacity(path)	Returns the capacity of the drive the path is located on.
 -attributes(path)	Get attributes about a specific file or folder.
 */
 
-int luaopen_fs(lua_State *L){
+int luaopen_fs(lua_State *L) {
   static const luaL_Reg fslib_m[] = {
     {"read", fs_read},
     {"readAll", fs_readAll},
