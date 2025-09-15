@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ff.h"
 
 /*
 ** This file uses only the official API of Lua.
@@ -708,7 +709,7 @@ LUALIB_API void luaL_unref (lua_State *L, int t, int ref) {
 
 typedef struct LoadF {
   int n;  /* number of pre-read characters */
-  FILE *f;  /* file being read */
+  FIL f;  /* file being read */
   char buff[BUFSIZ];  /* area for reading file */
 } LoadF;
 
@@ -724,8 +725,8 @@ static const char *getF (lua_State *L, void *ud, size_t *size) {
     /* 'fread' can return > 0 *and* set the EOF flag. If next call to
        'getF' called 'fread', it might still wait for user input.
        The next check avoids this problem. */
-    if (feof(lf->f)) return NULL;
-    *size = fread(lf->buff, 1, sizeof(lf->buff), lf->f);  /* read block */
+    if (f_eof(&lf->f)) return NULL;
+    f_read(&lf->f, lf->buff, sizeof(lf->buff), size); /* read block */
   }
   return lf->buff;
 }
@@ -734,7 +735,7 @@ static const char *getF (lua_State *L, void *ud, size_t *size) {
 static int errfile (lua_State *L, const char *what, int fnameindex) {
   const char *serr = strerror(errno);
   const char *filename = lua_tostring(L, fnameindex) + 1;
-  lua_pushfstring(L, "cannot %s %s: %s", what, filename, serr);
+  lua_pushfstring(L, "cannot %s %s: %d %s", what, filename, errno, serr);
   lua_remove(L, fnameindex);
   return LUA_ERRFILE;
 }
@@ -762,16 +763,19 @@ static int skipBOM (FILE *f) {
 ** first "valid" character of the file (after the optional BOM and
 ** a first-line comment).
 */
-static int skipcomment (FILE *f, int *cp) {
-  int c = *cp = skipBOM(f);
+static int skipcomment (FIL *f, int *cp) {
+  //int c = *cp = skipBOM(f); // ignore unicode
+  int c;
+  f_read(f, &c, 1, NULL);
   if (c == '#') {  /* first line is a comment (Unix exec. file)? */
     do {  /* skip first line */
-      c = getc(f);
-    } while (c != EOF && c != '\n');
-    *cp = getc(f);  /* next character after comment, if present */
+      f_read(f, &c, 1, NULL);
+    } while (!f_eof(f) && c != '\n');
+    f_read(f, cp, 1, NULL);  /* next character after comment, if present */
     return 1;  /* there was a comment */
   }
-  else return 0;  /* no comment */
+  *cp = c;
+  return 0;  /* no comment */
 }
 
 
@@ -782,31 +786,34 @@ LUALIB_API int luaL_loadfilex (lua_State *L, const char *filename,
   int c;
   int fnameindex = lua_gettop(L) + 1;  /* index of filename on the stack */
   if (filename == NULL) {
-    lua_pushliteral(L, "=stdin");
-    lf.f = stdin;
+    return errfile(L, "filename", fnameindex);
+    // we're not stdio
+    //lua_pushliteral(L, "=stdin");
+    //lf.f = stdin;
   }
   else {
     lua_pushfstring(L, "@%s", filename);
-    lf.f = fopen(filename, "r");
-    if (lf.f == NULL) return errfile(L, "open", fnameindex);
+    errno = f_open(&lf.f, filename, FA_READ);
+    if (errno != FR_OK) return errfile(L, "open", fnameindex);
   }
   lf.n = 0;
-  if (skipcomment(lf.f, &c))  /* read initial portion */
+  if (skipcomment(&lf.f, &c))  /* read initial portion */
     lf.buff[lf.n++] = '\n';  /* add newline to correct line numbers */
-  if (c == LUA_SIGNATURE[0]) {  /* binary file? */
-    lf.n = 0;  /* remove possible newline */
-    if (filename) {  /* "real" file? */
-      lf.f = freopen(filename, "rb", lf.f);  /* reopen in binary mode */
-      if (lf.f == NULL) return errfile(L, "reopen", fnameindex);
-      skipcomment(lf.f, &c);  /* re-read initial portion */
-    }
-  }
-  if (c != EOF)
+  //if (c == LUA_SIGNATURE[0]) {  /* binary file? */
+  //  lf.n = 0;  /* remove possible newline */
+  //  if (filename) {  /* "real" file? */
+  //    lf.f = freopen(filename, "rb", lf.f);  /* reopen in binary mode */
+  //    if (lf.f == NULL) return errfile(L, "reopen", fnameindex);
+  //    skipcomment(lf.f, &c);  /* re-read initial portion */
+  //  }
+  //}
+  if (!f_eof(&lf.f))
     lf.buff[lf.n++] = c;  /* 'c' is the first character of the stream */
   status = lua_load(L, getF, &lf, lua_tostring(L, -1), mode);
-  readstatus = ferror(lf.f);
-  if (filename) fclose(lf.f);  /* close file (even in case of errors) */
-  if (readstatus) {
+  readstatus = f_error(&lf.f);
+  if (filename) f_close(&lf.f);  /* close file (even in case of errors) */
+  if (readstatus != FR_OK) {
+    luaL_error(L, "%d", readstatus);
     lua_settop(L, fnameindex);  /* ignore results from 'lua_load' */
     return errfile(L, "read", fnameindex);
   }

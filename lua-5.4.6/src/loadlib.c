@@ -23,6 +23,7 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#include "ff.h"
 
 /*
 ** LUA_IGMARK is a mark to ignore all before it when building the
@@ -432,9 +433,15 @@ static int ll_loadlib (lua_State *L) {
 
 
 static int readable (const char *filename) {
-  FILE *f = fopen(filename, "r");  /* try to open file */
-  if (f == NULL) return 0;  /* open failed */
-  fclose(f);
+  FIL *f;
+  f = malloc(sizeof(FIL));
+  if (!f) return 0;
+  FRESULT r = f_open(f, filename, FA_READ);  /* try to open file */
+  free(f);
+  if (r != FR_OK) {
+    return 0;  /* open failed */
+  }
+  f_close(f);
   return 1;
 }
 

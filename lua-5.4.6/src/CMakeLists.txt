@@ -14,7 +14,7 @@ target_sources(lua
     lfunc.c
     lgc.c
     linit.c
-    liolib.c
+    #liolib.c
     llex.c
     lmathlib.c
     lmem.c
@@ -38,4 +38,6 @@ target_sources(lua
 target_include_directories(lua
     PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
+    ../../pico_fatfs/fatfs
+    ../../pico_fatfs/fatfs/conf
 )
