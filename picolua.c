@@ -65,7 +65,7 @@ int main() {
 		free(script);
 	}
 
-	printf("Welcome to \x1b[33mpico lua\x1b[m\n");
+	printf("Welcome to \x1b[93mpico lua\x1b[m\n");
 	while (1) {
 		char line[256];
 		int size = term_readline(PROMPT, line, 256);
@@ -88,7 +88,7 @@ int main() {
 				const char *msg = lua_tostring(L, -1);
 				lua_writestringerror("%s\n", msg);
 			} else {
-				printf("\x1b[36m");
+				printf("\x1b[96m");
 				l_print(L);
 				printf("\x1b[m");
 			}

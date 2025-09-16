@@ -20,14 +20,23 @@ void stdio_picocalc_deinit() {
 	stdio_set_driver_enabled(&stdio_picocalc, false);
 }
 
-static unsigned short palette[8] = {
+static unsigned short palette[16] = {
 	RGB(0, 0, 0),       // 0 black
-	RGB(255, 0, 0),     // 1 red
-	RGB(0, 255, 0),     // 2 green
-	RGB(255, 255, 0),   // 3 yellow
-	RGB(0, 0, 255),     // 4 blue
-	RGB(255, 0, 255),   // 5 magenta
-	RGB(0, 255, 255),     // 6 cyan
+	RGB(187, 0, 0),     // 1 red
+	RGB(0, 187, 0),     // 2 green
+	RGB(187, 187, 0),   // 3 yellow
+	RGB(0, 0, 187),     // 4 blue
+	RGB(187, 0, 187),   // 5 magenta
+	RGB(0, 187, 187),   // 6 cyan
+	RGB(187, 187, 187), // 7 white
+	// high intensity
+	RGB(85, 85, 85),    // 0 black
+	RGB(255, 85, 85),   // 1 red
+	RGB(85, 255, 85),   // 2 green
+	RGB(255, 255, 85),  // 3 yellow
+	RGB(85, 85, 255),   // 4 blue
+	RGB(255, 85, 255),  // 5 magenta
+	RGB(85, 255, 255),  // 6 cyan
 	RGB(255, 255, 255), // 7 white
 };
 
@@ -41,12 +50,12 @@ typedef struct {
 	int state;
 	int x, y;
 	int fg, bg;
-	char stack[16];
+	char stack[ANSI_STACK_SIZE];
 	int stack_size;
 } ansi_t;
 
 static ansi_t ansi = {
-	.state=AnsiNone, .x=0, .y=0, .fg=7, .bg=0, .stack={0}, .stack_size=0
+	.state=AnsiNone, .x=0, .y=0, .fg=DEFAULT_FG, .bg=DEFAULT_BG, .stack={0}, .stack_size=0
 };
 
 static int ansi_len_to_lcd_x(int len) {
@@ -58,15 +67,15 @@ static int ansi_len_to_lcd_y(int len) {
 }
 
 static void erase_line(int y) {
-	lcd_fill(palette[0], 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
+	lcd_fill(palette[DEFAULT_BG], 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
 }
 
 static void draw_cursor(int x, int y) {
-	lcd_fill(palette[7], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
+	lcd_fill(palette[DEFAULT_FG], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
 }
 
 static void erase_cursor(int x, int y) {
-	lcd_fill(palette[0], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
+	lcd_fill(palette[DEFAULT_BG], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
 }
 
 static void out_char(char c) {
@@ -109,21 +118,35 @@ static void stdio_picocalc_out_chars(const char *buf, int length) {
 			ansi.stack_size = 0;
 		} else if (ansi.state == AnsiBracket) {
 			ansi.stack[ansi.stack_size] = 0;
-			int a = 0, b = 0, semi_column = 0;
+			int a = 0, b = 0, semi_column = 0, i = 0;
 			//lcd_printf(0, 39 * 8, 0xffff, 0, "buf = '%c' stack = %s         ", *buf, ansi.stack);
+			//keyboard_wait();
 			switch (*buf) {
 				case 'A': ansi.y -= atoi(ansi.stack); ansi.state = AnsiNone; break; // cursor up
 				case 'B': ansi.y += atoi(ansi.stack); ansi.state = AnsiNone; break; // cursor down
 				case 'C': ansi.x += atoi(ansi.stack); ansi.state = AnsiNone; break; // cursor right
 				case 'D': ansi.x -= atoi(ansi.stack); ansi.state = AnsiNone; break; // cursor left
-				case 'J': lcd_clear(); ansi.x = ansi.y = 0; ansi.state = AnsiNone; break; // erase display
+				case 'J': term_clear(); ansi.state = AnsiNone; break; // erase display
 				case 'm':
 					if (ansi.stack_size == 0 || ansi.stack[0] == '0') {
-						ansi.fg = 7;
-						ansi.bg = 0;
-					} else if (ansi.stack[1] >= '0' && ansi.stack[1] < '8') {
-						if (ansi.stack[0] == '3') ansi.fg = ansi.stack[1] - '0';
-						else if (ansi.stack[0] == '4') ansi.bg = ansi.stack[1] - '0';
+						ansi.fg = DEFAULT_FG;
+						ansi.bg = DEFAULT_BG;
+					} else {
+						i = 0;
+						// this is all just kinda bad. makes me feel bad.
+						while (i < ansi.stack_size-1) {
+							if (i < ansi.stack_size-2 && ansi.stack[i] == '1' && ansi.stack[i+1] == '0') {
+								if (ansi.stack[i+2] >= '0' && ansi.stack[i+2] <= '7') { ansi.bg = ansi.stack[i+2] - '0' + 8; i+=2; }
+							} else {
+								a = ansi.stack[i+1] - '0';
+								if (a >= 0 && a <= 7) {
+									if (ansi.stack[i] == '3') { ansi.fg = a; i++; }
+									else if (ansi.stack[i] == '4') { ansi.bg = a; i++; }
+									else if (ansi.stack[i] == '9') { ansi.fg = a + 8; i++; }
+								}
+							}
+							i++;
+						}
 					}
 					ansi.state = AnsiNone;
 					break;
@@ -138,7 +161,7 @@ static void stdio_picocalc_out_chars(const char *buf, int length) {
 					ansi.state = AnsiNone;
 					break;
 				default:
-					if (ansi.stack_size < 16) ansi.stack[ansi.stack_size++] = *buf;
+					if (ansi.stack_size < ANSI_STACK_SIZE) ansi.stack[ansi.stack_size++] = *buf;
 					else ansi.state = AnsiNone;
 			}
 		}
@@ -172,16 +195,16 @@ stdio_driver_t stdio_picocalc = {
 static void term_erase_input(int size) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		lcd_fill(palette[0], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		lcd_fill(palette[DEFAULT_BG], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
 	}
 }
 
 static void term_draw_input(char* buffer, int size, int cursor) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		if (i == cursor) lcd_fill(palette[7], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
-		else if (i < size) lcd_draw_char(x, y, palette[7], palette[0], buffer[i]);
-		else lcd_fill(palette[0], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		if (i == cursor) lcd_fill(palette[DEFAULT_FG], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		else if (i < size) lcd_draw_char(x, y, palette[DEFAULT_FG], palette[DEFAULT_BG], buffer[i]);
+		else lcd_fill(palette[DEFAULT_BG], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
 	}
 	if (ansi.y + (size + ansi.x) / TERM_WIDTH >= TERM_HEIGHT) lcd_scroll((ansi.y + (size + ansi.x) / TERM_WIDTH - (TERM_HEIGHT-1)) * GLYPH_HEIGHT);
 }

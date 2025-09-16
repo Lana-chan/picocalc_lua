@@ -23,7 +23,7 @@ static void sd_hotplug(uint gpio, uint32_t events) {
 			// sd removed
 			busy_wait_us(DEBOUNCE_US);
 			if (gpio_get(SD_DETECT) == 1) {
-				printf("\x1b[31mSD unplugged! ");
+				printf("\x1b[91mSD unplugged! ");
 				if (fs_unmount()) {
 					printf("Unmounted!\x1b[m\n");
 				} else {
@@ -34,7 +34,7 @@ static void sd_hotplug(uint gpio, uint32_t events) {
 			// sd inserted
 			busy_wait_us(DEBOUNCE_US);
 			if (gpio_get(SD_DETECT) == 0) {
-				printf("\x1b[31mSD inserted, mounting...");
+				printf("\x1b[91mSD inserted, mounting...");
 				if (fs_mount()) {
 					printf("\x1b[32mOK!\x1b[m\n");
 				} else {
