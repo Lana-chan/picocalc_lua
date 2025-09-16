@@ -20,9 +20,9 @@ void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text);
 void lcd_printf(int x, int y, u16 fg, u16 bg, const char* format, ...);
 
 typedef struct {
-  u8* glyphs __attribute__((aligned(4)));
-  int glyph_width;
-  int glyph_height;
+	u8* glyphs __attribute__((aligned(4)));
+	int glyph_width;
+	int glyph_height;
 } font_t;
 
 extern font_t font;
