@@ -12,6 +12,7 @@
 #include "drivers/keyboard.h"
 #include "drivers/term.h"
 #include "drivers/fs.h"
+#include "modules/sys.h"
 
 #include "modules/modules.h"
 
@@ -20,6 +21,8 @@
 #include <lauxlib.h>
 
 #define PROMPT "lua> "
+
+extern const char* GIT_DESC;
 
 static void l_print (lua_State *L) {
 	int n = lua_gettop(L);
@@ -65,7 +68,8 @@ int main() {
 		free(script);
 	}
 
-	printf("Welcome to \x1b[93mpico lua\x1b[m\n");
+	printf("\x1b[93mPicocalc Lua\x1b[m %s\n", GIT_DESC);
+	printf("%u bytes free\n", get_free_memory());
 	while (1) {
 		char line[256];
 		int size = term_readline(PROMPT, line, 256);

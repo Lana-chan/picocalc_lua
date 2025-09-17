@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Add a custom command that produces version.cpp, plus
+# a dummy output that's not actually produced, in order
+# to force version.cmake to always be re-run before the build
+ADD_CUSTOM_COMMAND(
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.c
+					${CMAKE_CURRENT_BINARY_DIR}/_version.c
+	COMMAND ${CMAKE_COMMAND} -P
+					${CMAKE_CURRENT_SOURCE_DIR}/version.cmake)
+
 set(PICO_SDK_FETCH_FROM_GIT on)
 include(pico_sdk_import.cmake)
 
@@ -13,6 +22,7 @@ add_subdirectory(modules)
 
 add_executable(picolua
 	picolua.c
+	${CMAKE_CURRENT_BINARY_DIR}/version.c
 	#lua_wrapper.c
 	#fs_wrapper.c
 	#main.c
