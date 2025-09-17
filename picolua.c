@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "drivers/lcd.h"
+#include "drivers/draw.h"
 #include "drivers/keyboard.h"
 #include "drivers/term.h"
 #include "drivers/fs.h"
@@ -59,6 +60,13 @@ int main() {
 	modules_register_wrappers(L);
 	fs_mount();
 
+	printf("    \x1b[93mPicoCalc Lua\x1b[m %s\n", GIT_DESC);
+	printf("    %u bytes free\n", get_free_memory());
+	// TODO: scale with font size
+	draw_fill_circle(7, 9, 5, RGB(100,100,255));
+	draw_fill_circle(14, 2, 2, RGB(100,100,255));
+	draw_fill_circle(9, 8, 2, RGB(255,255,255));
+
 	char* script = fs_readfile("main.lua");
 	if (script != NULL) {
 		if (luaL_loadbuffer(L, script, strlen(script), "=main.lua") != LUA_OK || lua_pcall(L, 0, 0, 0) != LUA_OK) {
@@ -68,8 +76,6 @@ int main() {
 		free(script);
 	}
 
-	printf("\x1b[93mPicocalc Lua\x1b[m %s\n", GIT_DESC);
-	printf("%u bytes free\n", get_free_memory());
 	while (1) {
 		char line[256];
 		int size = term_readline(PROMPT, line, 256);

@@ -54,6 +54,7 @@ Color draw_color_from_hsv(u8 h, u8 s, u8 v) {
 
 void draw_clear() {
 	lcd_clear();
+	lcd_scroll(0);
 }
 
 void draw_point(i32 x, i32 y, Color color) {
