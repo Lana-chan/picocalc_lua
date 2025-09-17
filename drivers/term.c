@@ -20,7 +20,7 @@ void stdio_picocalc_deinit() {
 	stdio_set_driver_enabled(&stdio_picocalc, false);
 }
 
-static unsigned short palette[16] = {
+const static unsigned short palette[16] = {
 	RGB(0, 0, 0),       // 0 black
 	RGB(187, 0, 0),     // 1 red
 	RGB(0, 187, 0),     // 2 green
@@ -30,14 +30,14 @@ static unsigned short palette[16] = {
 	RGB(0, 187, 187),   // 6 cyan
 	RGB(187, 187, 187), // 7 white
 	// high intensity
-	RGB(85, 85, 85),    // 0 black
-	RGB(255, 85, 85),   // 1 red
-	RGB(85, 255, 85),   // 2 green
-	RGB(255, 255, 85),  // 3 yellow
-	RGB(85, 85, 255),   // 4 blue
-	RGB(255, 85, 255),  // 5 magenta
-	RGB(85, 255, 255),  // 6 cyan
-	RGB(255, 255, 255), // 7 white
+	RGB(85, 85, 85),    // 8 black
+	RGB(255, 85, 85),   // 9 red
+	RGB(85, 255, 85),   // a green
+	RGB(255, 255, 85),  // b yellow
+	RGB(85, 85, 255),   // c blue
+	RGB(255, 85, 255),  // d magenta
+	RGB(85, 255, 255),  // e cyan
+	RGB(255, 255, 255), // f white
 };
 
 enum {
@@ -49,13 +49,13 @@ enum {
 typedef struct {
 	int state;
 	int x, y;
-	int fg, bg;
+	u16 fg, bg;
 	char stack[ANSI_STACK_SIZE];
 	int stack_size;
 } ansi_t;
 
 static ansi_t ansi = {
-	.state=AnsiNone, .x=0, .y=0, .fg=DEFAULT_FG, .bg=DEFAULT_BG, .stack={0}, .stack_size=0
+	.state=AnsiNone, .x=0, .y=0, .fg=palette[DEFAULT_FG], .bg=palette[DEFAULT_BG], .stack={0}, .stack_size=0
 };
 
 static int ansi_len_to_lcd_x(int len) {
@@ -66,16 +66,80 @@ static int ansi_len_to_lcd_y(int len) {
 	return (ansi.y + (len + ansi.x) / TERM_WIDTH) * GLYPH_HEIGHT;
 }
 
-static void erase_line(int y) {
-	lcd_fill(palette[DEFAULT_BG], 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
+int term_get_x() {
+	return ansi.x;
+}
+int term_get_y() {
+	return ansi.y;
+}
+
+void term_set_pos(int x, int y) {
+	if (x >= 0 && x < TERM_WIDTH) ansi.x = x;
+	if (y >= 0 && y < TERM_HEIGHT) ansi.y = y;
+}
+
+int term_get_width() {
+	return TERM_WIDTH;
+}
+int term_get_height() {
+	return TERM_HEIGHT;
+}
+
+u16 term_get_fg() {
+	return ansi.fg;
+}
+u16 term_get_bg() {
+	return ansi.bg;
+}
+
+void term_set_fg(u16 color) {
+	ansi.fg = color;
+}
+void term_set_bg(u16 color) {
+	ansi.bg = color;
+}
+
+void term_clear() {
+	ansi.x = ansi.y = 0;
+	lcd_clear();
+	lcd_scroll(0);
+}
+
+void term_erase_line(int y) {
+	lcd_fill(ansi.bg, 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
 }
 
 static void draw_cursor(int x, int y) {
-	lcd_fill(palette[DEFAULT_FG], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
+	lcd_fill(ansi.fg, x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
 }
 
 static void erase_cursor(int x, int y) {
-	lcd_fill(palette[DEFAULT_BG], x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
+	lcd_fill(ansi.bg, x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
+}
+
+void term_write(const char* text) {
+	lcd_draw_text(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, text);
+	int len = strlen(text);
+	ansi.x += (len >= TERM_WIDTH ? TERM_WIDTH : len);
+}
+
+void term_blit(const char* text, const char* fg, const char* bg) {
+	u16 pfg = ansi.fg, pbg = ansi.bg;
+	const char *lfg = fg, *lbg = bg;
+	while(*text) {
+		if (*lfg >= '0' && *lfg <= '9') pfg = palette[*lfg - '0'];
+		else if (*lfg >= 'a' && *lfg <= 'f') pfg = palette[*lfg - 'a' + 10];
+		else if (*lfg >= 'A' && *lfg <= 'F') pfg = palette[*lfg - 'A' + 10];
+		if (*lbg >= '0' && *lbg <= '9') pbg = palette[*lbg - '0'];
+		else if (*lbg >= 'a' && *lbg <= 'f') pbg = palette[*lbg - 'a' + 10];
+		else if (*lbg >= 'A' && *lbg <= 'F') pbg = palette[*lbg - 'A' + 10];
+		lcd_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, pfg, pbg, *text);
+		ansi.x += 1;
+		if (ansi.x > TERM_WIDTH) return;
+		text ++;
+		lfg ++; if (!*lfg) lfg = fg;
+		lbg ++; if (!*lbg) lbg = bg;
+	}
 }
 
 static void out_char(char c) {
@@ -83,20 +147,20 @@ static void out_char(char c) {
 	if (c == '\n') {
 		ansi.x = 0;
 		ansi.y += 1;
-		erase_line(ansi.y);
+		term_erase_line(ansi.y);
 	} else if (c == '\b') ansi.x -= 1;
 	//else if (c == '\r') ansi.x = 0;
 	else if (c == '\t') {
-		lcd_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, palette[ansi.fg], palette[ansi.bg], ' ');
+		lcd_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, ' ');
 		ansi.x += 1;
 	} else if (c >= 32 && c < 127) {
-		lcd_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, palette[ansi.fg], palette[ansi.bg], c);
+		lcd_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, c);
 		ansi.x += 1;
 	}
 	if (ansi.x >= TERM_WIDTH) {
 		ansi.x = 0;
 		ansi.y += 1;
-		erase_line(ansi.y);
+		term_erase_line(ansi.y);
 	}
 	if (ansi.y >= TERM_HEIGHT) {
 		lcd_scroll((ansi.y - (TERM_HEIGHT - 1)) * GLYPH_HEIGHT);
@@ -129,20 +193,20 @@ static void stdio_picocalc_out_chars(const char *buf, int length) {
 				case 'J': term_clear(); ansi.state = AnsiNone; break; // erase display
 				case 'm':
 					if (ansi.stack_size == 0 || ansi.stack[0] == '0') {
-						ansi.fg = DEFAULT_FG;
-						ansi.bg = DEFAULT_BG;
+						ansi.fg = palette[DEFAULT_FG];
+						ansi.bg = palette[DEFAULT_BG];
 					} else {
 						i = 0;
 						// this is all just kinda bad. makes me feel bad.
 						while (i < ansi.stack_size-1) {
 							if (i < ansi.stack_size-2 && ansi.stack[i] == '1' && ansi.stack[i+1] == '0') {
-								if (ansi.stack[i+2] >= '0' && ansi.stack[i+2] <= '7') { ansi.bg = ansi.stack[i+2] - '0' + 8; i+=2; }
+								if (ansi.stack[i+2] >= '0' && ansi.stack[i+2] <= '7') { ansi.bg = palette[ansi.stack[i+2] - '0' + 8]; i+=2; }
 							} else {
 								a = ansi.stack[i+1] - '0';
 								if (a >= 0 && a <= 7) {
-									if (ansi.stack[i] == '3') { ansi.fg = a; i++; }
-									else if (ansi.stack[i] == '4') { ansi.bg = a; i++; }
-									else if (ansi.stack[i] == '9') { ansi.fg = a + 8; i++; }
+									if (ansi.stack[i] == '3') { ansi.fg = palette[a]; i++; }
+									else if (ansi.stack[i] == '4') { ansi.bg = palette[a]; i++; }
+									else if (ansi.stack[i] == '9') { ansi.fg = palette[a + 8]; i++; }
 								}
 							}
 							i++;
@@ -195,24 +259,18 @@ stdio_driver_t stdio_picocalc = {
 static void term_erase_input(int size) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		lcd_fill(palette[DEFAULT_BG], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		lcd_fill(ansi.bg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
 	}
 }
 
 static void term_draw_input(char* buffer, int size, int cursor) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		if (i == cursor) lcd_fill(palette[DEFAULT_FG], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
-		else if (i < size) lcd_draw_char(x, y, palette[DEFAULT_FG], palette[DEFAULT_BG], buffer[i]);
-		else lcd_fill(palette[DEFAULT_BG], x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		if (i == cursor) lcd_fill(ansi.fg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		else if (i < size) lcd_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
+		else lcd_fill(ansi.bg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
 	}
 	if (ansi.y + (size + ansi.x) / TERM_WIDTH >= TERM_HEIGHT) lcd_scroll((ansi.y + (size + ansi.x) / TERM_WIDTH - (TERM_HEIGHT-1)) * GLYPH_HEIGHT);
-}
-
-void term_clear() {
-	ansi.x = ansi.y = 0;
-	lcd_clear();
-	lcd_scroll(0);
 }
 
 static char* history[32] = {0};

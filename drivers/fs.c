@@ -36,7 +36,7 @@ static void sd_hotplug(uint gpio, uint32_t events) {
 			if (gpio_get(SD_DETECT) == 0) {
 				printf("\x1b[91mSD inserted, mounting...");
 				if (fs_mount()) {
-					printf("\x1b[32mOK!\x1b[m\n");
+					printf("\x1b[92mOK!\x1b[m\n");
 				} else {
 					printf("Failed to mount!\x1b[m\n");
 				}
