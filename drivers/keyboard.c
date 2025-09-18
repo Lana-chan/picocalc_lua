@@ -29,7 +29,7 @@ enum {
 	REG_ID_C64_JS = 0x0d,  // joystick io bits
 };
 
-input_event_t last_event;
+input_event_t last_event = {0, 0, KEY_NONE};
 
 static int keyboard_modifiers;
 

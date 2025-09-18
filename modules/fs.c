@@ -71,7 +71,7 @@ static int fs_open(lua_State* L) {
 	FIL* fp = lua_newuserdata(L, sizeof(FIL));
 	luaL_getmetatable(L, filehandle);
 	lua_setmetatable(L, -2);
-	FRESULT result = f_open(fp, path, mode);
+	FRESULT result = f_open(fp, path, modes[mode]);
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
 	return 1;
 }
