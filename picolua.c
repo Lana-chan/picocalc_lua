@@ -36,7 +36,13 @@ static void l_print (lua_State *L) {
 }
 
 void check_interrupt(lua_State *L, lua_Debug *ar) {
-	if (last_event.code == KEY_BREAK) luaL_error(L, "error: interrupted");
+	input_event_t event = keyboard_poll_ex(false);
+	if (event.code == KEY_BREAK) {
+		luaL_error(L, "error: interrupted");
+	} else {
+		// prevent dropped input
+		last_event = event;
+	}
 }
 
 int main() {

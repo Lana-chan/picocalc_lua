@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 typedef enum {
 	KEY_STATE_IDLE = 0,
 	KEY_STATE_PRESSED = 1,
@@ -174,6 +176,7 @@ typedef struct {
 input_event_t last_event;
 
 int keyboard_init();
+input_event_t keyboard_poll_ex(bool buffered);
 input_event_t keyboard_poll();
 input_event_t keyboard_wait();
 char keyboard_getchar();
