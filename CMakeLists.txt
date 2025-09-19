@@ -15,7 +15,7 @@ include(pico_sdk_import.cmake)
 project(picolua)
 pico_sdk_init()
 
-add_subdirectory(lua-5.4.6/src)
+add_subdirectory(lua-5.4.8)
 add_subdirectory(drivers)
 add_subdirectory(pico_fatfs)
 add_subdirectory(modules)
@@ -42,7 +42,7 @@ target_link_libraries(picolua
 	#hardware_adc
 	#hardware_exception
 	#hardware_pio
-	#pico_multicore
+	pico_multicore
 	lua 
 	drivers
 	pico_fatfs
