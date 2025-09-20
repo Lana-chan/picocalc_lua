@@ -40,4 +40,5 @@ target_include_directories(lua
     ${CMAKE_CURRENT_LIST_DIR}
     ../pico_fatfs/fatfs
     ../pico_fatfs/fatfs/conf
+    ../drivers
 )
