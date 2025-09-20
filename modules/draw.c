@@ -14,12 +14,12 @@ static int l_draw_text(lua_State* L) {
 	u16 fg = luaL_checkinteger(L, 3);
 	u16 bg = luaL_checkinteger(L, 4);
 	const char* text = luaL_checkstring(L, 5);
-	lcd_draw_text(x, y, fg, bg, text);
+	lcd_fifo_draw_text(x, y, fg, bg, text);
 	return 0;
 }
 
 static int l_draw_clear(lua_State* L) {
-	draw_clear();
+	draw_fifo_clear();
 	return 0;
 }
 
@@ -88,7 +88,7 @@ static int l_draw_point(lua_State* L) {
 	i32 x = luaL_checknumber(L, 1);
 	i32 y = luaL_checknumber(L, 2);
 	Color color = luaL_checkinteger(L, 3);
-	draw_point(x, y, color);
+	draw_fifo_point(x, y, color);
 	return 0;
 }
 
@@ -98,7 +98,7 @@ static int l_draw_rect(lua_State* L) {
 	i32 width = luaL_checknumber(L, 3);
 	i32 height = luaL_checknumber(L, 4);
 	Color color = luaL_checkinteger(L, 5);
-	draw_rect(x, y, width, height, color);
+	draw_fifo_rect(x, y, width, height, color);
 	return 0;
 }
 
@@ -108,7 +108,7 @@ static int l_draw_fill_rect(lua_State* L) {
 	i32 width = luaL_checknumber(L, 3);
 	i32 height = luaL_checknumber(L, 4);
 	Color color = luaL_checkinteger(L, 5);
-	draw_fill_rect(x, y, width, height, color);
+	draw_fifo_fill_rect(x, y, width, height, color);
 	return 0;
 }
 
@@ -118,7 +118,7 @@ static int l_draw_line(lua_State* L) {
 	i32 x2 = luaL_checknumber(L, 3);
 	i32 y2 = luaL_checknumber(L, 4);
 	Color color = luaL_checkinteger(L, 5);
-	draw_line(x1, y1, x2, y2, color);
+	draw_fifo_line(x1, y1, x2, y2, color);
 	return 0;
 }
 
@@ -127,7 +127,7 @@ static int l_draw_circle(lua_State* L) {
 	i32 ym = luaL_checknumber(L, 2);
 	i32 r = luaL_checknumber(L, 3);
 	Color color = luaL_checkinteger(L, 4);
-	draw_circle(xm, ym, r, color);
+	draw_fifo_circle(xm, ym, r, color);
 	return 0;
 }
 
@@ -136,7 +136,7 @@ static int l_draw_fill_circle(lua_State* L) {
 	i32 ym = luaL_checknumber(L, 2);
 	i32 r = luaL_checknumber(L, 3);
 	Color color = luaL_checkinteger(L, 4);
-	draw_fill_circle(xm, ym, r, color);
+	draw_fifo_fill_circle(xm, ym, r, color);
 	return 0;
 }
 
@@ -159,8 +159,10 @@ static int l_draw_polygon(lua_State* L) {
 	}
 
 	Color color = luaL_checkinteger(L, 2);
-	draw_polygon(n, points, color);
-	free(points);
+	draw_fifo_polygon(n, points, color);
+	// we trust draw_fifo_polygon to eventually free the array
+	// because it will be needed on the second core
+	//free(points);
 	return 0;
 }
 
@@ -183,8 +185,8 @@ static int l_draw_fill_polygon(lua_State* L) {
 	}
 
 	Color color = luaL_checkinteger(L, 2);
-	draw_fill_polygon(n, points, color);
-	free(points);
+	draw_fifo_fill_polygon(n, points, color);
+	//free(points);
 	return 0;
 }
 
@@ -198,7 +200,7 @@ static int l_draw_triangle_shaded(lua_State* L) {
 	Color c3 = luaL_checkinteger(L, 7);
 	float x3 = luaL_checknumber(L, 8);
 	float y3 = luaL_checknumber(L, 9);
-	draw_triangle_shaded(c1, x1, y1, c2, x2, y2, c3, x3, y3);
+	draw_fifo_triangle_shaded(c1, x1, y1, c2, x2, y2, c3, x3, y3);
 	return 0;
 }
 

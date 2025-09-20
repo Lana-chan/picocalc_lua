@@ -17,6 +17,7 @@ target_sources(drivers INTERFACE
 	term.c
 	draw.c
 	fs.c
+	multicore.c
 	)
 
 target_link_libraries(drivers INTERFACE  pico_stdlib hardware_spi hardware_i2c)

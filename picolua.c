@@ -8,11 +8,15 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "pico/stdlib.h"
+#include "pico/multicore.h"
+
 #include "drivers/lcd.h"
 #include "drivers/draw.h"
 #include "drivers/keyboard.h"
 #include "drivers/term.h"
 #include "drivers/fs.h"
+#include "drivers/multicore.h"
 #include "modules/sys.h"
 
 #include "modules/modules.h"
@@ -35,6 +39,15 @@ static void l_print (lua_State *L) {
 	}
 }
 
+void core1() {
+	lcd_init();
+	multicore_fifo_drain();
+
+	while (true) {
+		handle_multicore_fifo();
+	}
+}
+
 void check_interrupt(lua_State *L, lua_Debug *ar) {
 	input_event_t event = keyboard_poll_ex(false);
 	if (event.code == KEY_BREAK) {
@@ -51,10 +64,10 @@ int main() {
 	size_t len;
 	char ch;
 
+	multicore_launch_core1(core1);
+	sleep_ms(200);
+
 	//stdio_init_all();
-	lcd_init();
-	lcd_clear();
-	lcd_on();
 	keyboard_init();
 	stdio_picocalc_init(); 
 	fs_init();
@@ -69,9 +82,9 @@ int main() {
 	printf("    \x1b[93mPicoCalc Lua\x1b[m %s\n", GIT_DESC);
 	printf("    %u bytes free\n", get_free_memory());
 	// TODO: scale with font size
-	draw_fill_circle(7, 9, 5, RGB(100,100,255));
-	draw_fill_circle(14, 2, 2, RGB(100,100,255));
-	draw_fill_circle(9, 8, 2, RGB(255,255,255));
+	draw_fifo_fill_circle(7, 9, 5, RGB(100,100,255));
+	draw_fifo_fill_circle(14, 2, 2, RGB(100,100,255));
+	draw_fifo_fill_circle(9, 8, 2, RGB(255,255,255));
 
 	char* script = fs_readfile("main.lua");
 	if (script != NULL) {

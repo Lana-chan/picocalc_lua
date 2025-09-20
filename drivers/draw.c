@@ -1,7 +1,25 @@
+#include <stdlib.h>
+
+#include "pico/stdlib.h"
+#include "pico/multicore.h"
+
 #include "draw.h"
 #include "lcd.h"
+#include "multicore.h"
 
 #define abs(x) ((x) < 0 ? -(x) : (x))
+
+#define FIFO_DRAW          100
+#define FIFO_DRAW_POINT    FIFO_DRAW + 1
+#define FIFO_DRAW_CLEAR    FIFO_DRAW + 2
+#define FIFO_DRAW_RECT     FIFO_DRAW + 3
+#define FIFO_DRAW_RECTFILL FIFO_DRAW + 4
+#define FIFO_DRAW_LINE     FIFO_DRAW + 5
+#define FIFO_DRAW_CIRC     FIFO_DRAW + 6
+#define FIFO_DRAW_CIRCFILL FIFO_DRAW + 7
+#define FIFO_DRAW_POLY     FIFO_DRAW + 8
+#define FIFO_DRAW_POLYFILL FIFO_DRAW + 9
+#define FIFO_DRAW_TRI      FIFO_DRAW + 10
 
 static void draw_horizontal_line(i32 x1, i32 x2, i32 y, Color color) {
 	if (x1 >= WIDTH || x2 < 0 || y < 0 || y >= MEM_HEIGHT) return;
@@ -85,7 +103,7 @@ void draw_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
 	draw_horizontal_line(x, x + width, y + height - 1, color);
 }
 
-void draw_blit(i32 x, i32 y, i32 x_source, i32 y_source, i32 width, i32 height, Color* source, i32 source_width, i32 source_height) {
+/*void draw_blit(i32 x, i32 y, i32 x_source, i32 y_source, i32 width, i32 height, Color* source, i32 source_width, i32 source_height) {
 	if (x_source < 0) {
 		width += x_source;
 		x_source = 0;
@@ -111,7 +129,7 @@ void draw_blit(i32 x, i32 y, i32 x_source, i32 y_source, i32 width, i32 height, 
 	for (int j = 0; j < height; j++) {
 		int offset = (y + j) * WIDTH + x;
 		int source_offset = (y_source + j) * source_width + x_source;
-		if (width > 0) lcd_draw(source + source_offset, x, y + j, width, height);
+		if (width > 0) lcd_fifo_draw(source + source_offset, x, y + j, width, height);
 	}
 }
 
@@ -151,7 +169,7 @@ void blit_masked_flipped(i32 x, i32 y, i32 x_source, i32 y_source, i32 width, i3
 			}
 		}
 	}
-}
+}*/
 
 void draw_line(i32 x0, i32 y0, i32 x1, i32 y1, Color color) {
 	i32 dx =  abs(x1-x0);
@@ -368,3 +386,175 @@ void draw_triangle_shaded(Color c1, float x1, float y1, Color c2, float x2, floa
 
 // todo: blit, roto-scale, etc.
 
+int draw_fifo_receiver(uint32_t message) {
+	uint32_t x1, y1, c1, x2, y2, c2, x3, y3, c3;
+	
+	switch (message) {
+		case FIFO_DRAW_POINT:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_point((i32)x1, (i32)y1, (Color)c1);
+			return 1;
+
+		case FIFO_DRAW_CLEAR:
+			draw_clear();
+			return 1;
+
+		case FIFO_DRAW_RECT:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&x2)) return 1;
+			if (!multicore_fifo_pop(&y2)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_rect((i32)x1, (i32)y1, (i32)x2, (i32)y2, (Color)c1);
+			return 1;
+
+		case FIFO_DRAW_RECTFILL:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&x2)) return 1;
+			if (!multicore_fifo_pop(&y2)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_fill_rect((i32)x1, (i32)y1, (i32)x2, (i32)y2, (Color)c1);
+			return 1;
+
+		case FIFO_DRAW_LINE:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&x2)) return 1;
+			if (!multicore_fifo_pop(&y2)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_line((i32)x1, (i32)y1, (i32)x2, (i32)y2, (Color)c1);
+			return 1;
+
+		case FIFO_DRAW_CIRC:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&x2)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_circle((i32)x1, (i32)y1, (i32)x2, (Color)c1);
+			return 1;
+
+		case FIFO_DRAW_CIRCFILL:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&x2)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_fill_circle((i32)x1, (i32)y1, (i32)x2, (Color)c1);
+			return 1;
+
+		case FIFO_DRAW_POLY:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_polygon((int)x1, (float*)y1, (Color)c1);
+			free((float*)y1);
+			return 1;
+
+		case FIFO_DRAW_POLYFILL:
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&c1)) return 1;
+			draw_fill_polygon((int)x1, (float*)y1, (Color)c1);
+			free((float*)y1);
+			return 1;
+
+		case FIFO_DRAW_TRI:
+			if (!multicore_fifo_pop(&c1)) return 1;
+			if (!multicore_fifo_pop(&x1)) return 1;
+			if (!multicore_fifo_pop(&y1)) return 1;
+			if (!multicore_fifo_pop(&c2)) return 1;
+			if (!multicore_fifo_pop(&x2)) return 1;
+			if (!multicore_fifo_pop(&y2)) return 1;
+			if (!multicore_fifo_pop(&c3)) return 1;
+			if (!multicore_fifo_pop(&x3)) return 1;
+			if (!multicore_fifo_pop(&y3)) return 1;
+			draw_triangle_shaded((Color)c1, (float)x1, (float)y1, (Color)c2, (float)x2, (float)y2, (Color)c3, (float)x3, (float)y3);
+			return 1;
+
+		default:
+			return 0;
+	}
+}
+
+void draw_fifo_point(i32 x, i32 y, Color color) {
+	multicore_fifo_push(FIFO_DRAW_POINT);
+	multicore_fifo_push(x);
+	multicore_fifo_push(y);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_clear() {
+	multicore_fifo_push(FIFO_DRAW_CLEAR);
+}
+
+void draw_fifo_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
+	multicore_fifo_push(FIFO_DRAW_RECT);
+	multicore_fifo_push(x);
+	multicore_fifo_push(y);
+	multicore_fifo_push(width);
+	multicore_fifo_push(height);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_fill_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
+	multicore_fifo_push(FIFO_DRAW_RECTFILL);
+	multicore_fifo_push(x);
+	multicore_fifo_push(y);
+	multicore_fifo_push(width);
+	multicore_fifo_push(height);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_line(i32 x0, i32 y0, i32 x1, i32 y1, Color color) {
+	multicore_fifo_push(FIFO_DRAW_LINE);
+	multicore_fifo_push(x0);
+	multicore_fifo_push(y0);
+	multicore_fifo_push(x1);
+	multicore_fifo_push(y1);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_circle(i32 xm, i32 ym, i32 r, Color color) {
+	multicore_fifo_push(FIFO_DRAW_CIRC);
+	multicore_fifo_push(xm);
+	multicore_fifo_push(ym);
+	multicore_fifo_push(r);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_fill_circle(i32 xm, i32 ym, i32 r, Color color) {
+	multicore_fifo_push(FIFO_DRAW_CIRCFILL);
+	multicore_fifo_push(xm);
+	multicore_fifo_push(ym);
+	multicore_fifo_push(r);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_polygon(int n, float* points, Color color) {
+	multicore_fifo_push(FIFO_DRAW_POLY);
+	multicore_fifo_push(n);
+	multicore_fifo_push((uint32_t)points);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_fill_polygon(int n, float* points, Color color) {
+	multicore_fifo_push(FIFO_DRAW_POLYFILL);
+	multicore_fifo_push(n);
+	multicore_fifo_push((uint32_t)points);
+	multicore_fifo_push(color);
+}
+
+void draw_fifo_triangle_shaded(Color c1, float x1, float y1, Color c2, float x2, float y2, Color c3, float x3, float y3) {
+	multicore_fifo_push(FIFO_DRAW_TRI);
+	multicore_fifo_push(c1);
+	multicore_fifo_push(x1);
+	multicore_fifo_push(y1);
+	multicore_fifo_push(c2);
+	multicore_fifo_push(x2);
+	multicore_fifo_push(y2);
+	multicore_fifo_push(c3);
+	multicore_fifo_push(x3);
+	multicore_fifo_push(y3);
+}

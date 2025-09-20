@@ -1,11 +1,17 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#include "pico/stdlib.h"
+#include "pico/multicore.h"
 #include "pico/time.h"
+
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
 
 #include "lcd.h"
 #include "font.h"
+#include "multicore.h"
 
 #define LCD_SCK 10
 #define LCD_TX  11
@@ -13,6 +19,14 @@
 #define LCD_CS  13
 #define LCD_DC  14
 #define LCD_RST 15
+
+#define FIFO_LCD        0
+#define FIFO_LCD_DRAW   FIFO_LCD + 1
+#define FIFO_LCD_FILL   FIFO_LCD + 2
+#define FIFO_LCD_CLEAR  FIFO_LCD + 3
+#define FIFO_LCD_CHAR   FIFO_LCD + 4
+#define FIFO_LCD_TEXT   FIFO_LCD + 5
+#define FIFO_LCD_SCROLL FIFO_LCD + 6
 
 static int lcd_write_spi(void *buf, size_t len) {
 	return spi_write_blocking(spi1, buf, len);
@@ -300,8 +314,11 @@ void lcd_init() {
 	lcd_write_reg(0x11);                      // Exit Sleep
 	//sleep_ms(120);
 	//lcd_write_reg(0x29);                      // Display on
-	sleep_ms(120);
+	//sleep_ms(120);
 	gpio_put(LCD_CS, 1);
+
+	lcd_clear();
+	lcd_on();
 }
 
 void lcd_blank() {
@@ -328,3 +345,99 @@ void lcd_off() {
 	gpio_put(LCD_CS, 1);
 }
 
+int lcd_fifo_receiver(uint32_t message) {
+	uint32_t x, y, fg, bg, width, height, c;
+	char* text;
+
+	switch (message) {
+		//case FIFO_DRAW:
+
+		case FIFO_LCD_FILL:
+			if (!multicore_fifo_pop(&fg)) return 1;
+			if (!multicore_fifo_pop(&x)) return 1;
+			if (!multicore_fifo_pop(&y)) return 1;
+			if (!multicore_fifo_pop(&width)) return 1;
+			if (!multicore_fifo_pop(&height)) return 1;
+			lcd_fill((u16)fg, (int)x, (int)y, (int)width, (int)height);
+			return 1;
+
+		case FIFO_LCD_CLEAR:
+			lcd_clear();
+			return 1;
+
+		case FIFO_LCD_CHAR:
+			if (!multicore_fifo_pop(&x)) return 1;
+			if (!multicore_fifo_pop(&y)) return 1;
+			if (!multicore_fifo_pop(&fg)) return 1;
+			if (!multicore_fifo_pop(&bg)) return 1;
+			if (!multicore_fifo_pop(&c)) return 1;
+			lcd_draw_char((int)x, (int)y, (u16)fg, (u16)bg, (char)c);
+			return 1;
+
+		case FIFO_LCD_TEXT:
+			if (!multicore_fifo_pop(&x)) return 1;
+			if (!multicore_fifo_pop(&y)) return 1;
+			if (!multicore_fifo_pop(&fg)) return 1;
+			if (!multicore_fifo_pop(&bg)) return 1;
+			text = multicore_fifo_pop_string();
+			lcd_draw_text((int)x, (int)y, (u16)fg, (u16)bg, text);
+			free(text);
+			return 1;
+
+		case FIFO_LCD_SCROLL:
+			if (!multicore_fifo_pop(&height)) return 1;
+			lcd_scroll((int)height);
+			return 1;
+
+		default:
+			return 0;
+	}
+}
+
+//void lcd_fifo_draw(u16* pixels, int x, int y, int width, int height);
+
+void lcd_fifo_fill(u16 color, int x, int y, int width, int height) {
+	multicore_fifo_push(FIFO_LCD_FILL);
+	multicore_fifo_push(color);
+	multicore_fifo_push(x);
+	multicore_fifo_push(y);
+	multicore_fifo_push(width);
+	multicore_fifo_push(height);
+}
+
+int lcd_fifo_clear() {
+	multicore_fifo_push(FIFO_LCD_CLEAR);
+}
+
+void lcd_fifo_draw_char(int x, int y, u16 fg, u16 bg, char c) {
+	multicore_fifo_push(FIFO_LCD_CHAR);
+	multicore_fifo_push(x);
+	multicore_fifo_push(y);
+	multicore_fifo_push(fg);
+	multicore_fifo_push(bg);
+	multicore_fifo_push(c);
+}
+
+void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text) {
+	multicore_fifo_push(FIFO_LCD_TEXT);
+	multicore_fifo_push(x);
+	multicore_fifo_push(y);
+	multicore_fifo_push(fg);
+	multicore_fifo_push(bg);
+	multicore_fifo_push_string(text);
+}
+
+void lcd_fifo_printf(int x, int y, u16 fg, u16 bg, const char* format, ...) {
+	char buffer[256];
+	va_list list;
+	va_start(list, format);
+	int result = vsnprintf(buffer, 256, format, list);
+	if (result > -1) {
+		lcd_fifo_draw_text(x, y, fg, bg, buffer);
+	}
+}
+
+void lcd_fifo_scroll(int lines) {
+	multicore_fifo_push(FIFO_LCD_SCROLL);
+	multicore_fifo_push(lines);
+}
