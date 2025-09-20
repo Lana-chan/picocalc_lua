@@ -208,26 +208,55 @@ int luaopen_draw(lua_State *L) {
 	static const luaL_Reg drawlib_f [] = {
 		{"text", l_draw_text},
 		{"clear", l_draw_clear},
-		{"color_from_rgb", l_draw_color_from_rgb},
-		{"color_to_rgb", l_draw_color_to_rgb},
-		{"color_from_hsv", l_draw_color_from_hsv},
-		{"color_to_hsv", l_draw_color_to_hsv},
-		{"color_add", l_draw_color_add},
-		{"color_subtract", l_draw_color_subtract},
-		{"color_mul", l_draw_color_mul},
 		{"point", l_draw_point},
 		{"rect", l_draw_rect},
-		{"fill_rect", l_draw_fill_rect},
+		{"rectFill", l_draw_fill_rect},
 		{"line", l_draw_line},
 		{"circle", l_draw_circle},
-		{"fill_circle", l_draw_fill_circle},
+		{"circleFill", l_draw_fill_circle},
 		{"polygon", l_draw_polygon},
-		{"fill_polygon", l_draw_fill_polygon},
-		{"triangle_shaded", l_draw_triangle_shaded},
+		{"polygonFill", l_draw_fill_polygon},
+		{"triangle", l_draw_triangle_shaded},
 		{NULL, NULL}
 	};
 	
 	luaL_newlib(L, drawlib_f);
+	
+	return 1;
+}
+
+#define lua_pushintegerconstant(L, n, v) (lua_pushinteger(L, v), lua_setfield(L, -2, n))
+
+int luaopen_color(lua_State *L) {
+	static const luaL_Reg colorlib_f [] = {
+		{"fromRGB", l_draw_color_from_rgb},
+		{"toRGB", l_draw_color_to_rgb},
+		{"fromHSV", l_draw_color_from_hsv},
+		{"toHSV", l_draw_color_to_hsv},
+		{"add", l_draw_color_add},
+		{"subtract", l_draw_color_subtract},
+		{"multiply", l_draw_color_mul},
+		{NULL, NULL}
+	};
+	
+	luaL_newlib(L, colorlib_f);
+
+	lua_pushintegerconstant(L, "white", RGB(240, 240, 240));
+	lua_pushintegerconstant(L, "orange", RGB(242, 178, 51));
+	lua_pushintegerconstant(L, "magenta", RGB(229, 127, 216));
+	lua_pushintegerconstant(L, "lightBlue", RGB(153, 178, 242));
+	lua_pushintegerconstant(L, "yellow", RGB(222, 222, 108));
+	lua_pushintegerconstant(L, "lime", RGB(127, 204, 25));
+	lua_pushintegerconstant(L, "pink", RGB(242, 178, 204));
+	lua_pushintegerconstant(L, "gray", RGB(76, 76, 76));
+	lua_pushintegerconstant(L, "lightGray", RGB(153, 153, 153));
+	lua_pushintegerconstant(L, "cyan", RGB(76, 153, 178));
+	lua_pushintegerconstant(L, "purple", RGB(178, 102, 229));
+	lua_pushintegerconstant(L, "blue", RGB(51, 102, 204));
+	lua_pushintegerconstant(L, "brown", RGB(127, 102, 76));
+	lua_pushintegerconstant(L, "green", RGB(87, 166, 78));
+	lua_pushintegerconstant(L, "red", RGB(204, 76, 76));
+	lua_pushintegerconstant(L, "black", RGB(17, 17, 1));
 	
 	return 1;
 }
