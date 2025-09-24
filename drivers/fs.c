@@ -58,6 +58,7 @@ void fs_init() {
 		.pullup = true,
 	};
 	pico_fatfs_set_config(&config);
+	gpio_init(SD_DETECT);
 	gpio_set_irq_enabled_with_callback(SD_DETECT, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &sd_hotplug);
 }
 
