@@ -173,7 +173,7 @@ typedef struct {
 	short code;
 } input_event_t;
 
-input_event_t last_event;
+extern input_event_t last_event;
 
 int keyboard_init();
 input_event_t keyboard_poll_ex(bool buffered);

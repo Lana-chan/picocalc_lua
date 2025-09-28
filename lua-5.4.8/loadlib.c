@@ -424,12 +424,9 @@ static int ll_loadlib (lua_State *L) {
 
 
 static int readable (const char *filename) {
-  FIL *f;
-  f = malloc(sizeof(FIL));
-  if (!f) return 0;
-  FRESULT r = f_open(f, filename, FA_READ);  /* try to open file */
-  f_close(f);
-  free(f);
+  FIL f;
+  FRESULT r = f_open(&f, filename, FA_READ);  /* try to open file */
+  f_close(&f);
   if (r != FR_OK) {
     return 0;  /* open failed */
   }

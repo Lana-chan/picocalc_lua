@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "fs.h"
+#include "ff.h"
 
 /*
 ** This file uses only the official API of Lua.
@@ -714,6 +714,7 @@ typedef struct LoadF {
   int n;  /* number of pre-read characters */
   FILE *f;  /* file being read */
   char buff[BUFSIZ];  /* area for reading file */
+  FIL *fs;
 } LoadF;
 
 
@@ -731,6 +732,23 @@ static const char *getF (lua_State *L, void *ud, size_t *size) {
     if (feof(lf->f)) return NULL;
     *size = fread(lf->buff, 1, sizeof(lf->buff), lf->f);  /* read block */
   }
+  return lf->buff;
+}
+
+
+typedef struct LoadFS {
+  FIL f;  /* file being read */
+  char buff[BUFSIZ];  /* area for reading file */
+} LoadFS;
+
+
+static const char *getFS (lua_State *L, void *ud, size_t *size) {
+  LoadFS *lf = (LoadFS *)ud;
+  FRESULT status;
+  (void)L;  /* not used */
+  /* read a block from file */
+  if (f_eof(&lf->f)) return NULL;
+  status = f_read(&lf->f, lf->buff, sizeof(lf->buff), size);  /* read block */
   return lf->buff;
 }
 
@@ -784,19 +802,30 @@ static int skipcomment (FILE *f, int *cp) {
 
 LUALIB_API int luaL_loadfilex (lua_State *L, const char *filename,
                                              const char *mode) {
-  int status, readstatus;
-
-  char* buffer = fs_readfile(filename);
-  if (buffer == NULL) {
-    lua_pushfstring(L, "Error opening file: %s", filename);
+  LoadFS lf;
+  int status;
+  BYTE readstatus;
+  FRESULT fstatus;
+  int fnameindex = lua_gettop(L) + 1;  /* index of filename on the stack */
+  if (filename == NULL) {
+    lua_pushliteral(L, "must specify filename");
     return LUA_ERRFILE;
   }
-  char* name = malloc(strlen(filename) + 2);
-  snprintf(name, strlen(filename) + 2, "@%s", filename);
-  status = luaL_loadbuffer(L, buffer, strlen(buffer), name);
-  free(name);
-  free(buffer);
-
+  else {
+    lua_pushfstring(L, "@%s", filename);
+    errno = 0;
+    fstatus = f_open(&lf.f, filename, FA_READ);
+    if (fstatus != FR_OK) return errfile(L, "open", fnameindex);
+  }
+  errno = 0;
+  status = lua_load(L, getFS, &lf, lua_tostring(L, -1), mode);
+  readstatus = f_error(&lf.f);
+  if (filename) f_close(&lf.f);  /* close file (even in case of errors) */
+  if (readstatus) {
+    lua_settop(L, fnameindex);  /* ignore results from 'lua_load' */
+    return errfile(L, "read", fnameindex);
+  }
+  lua_remove(L, fnameindex);
   return status;
 }
 
