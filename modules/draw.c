@@ -7,6 +7,7 @@
 
 #include "../drivers/lcd.h"
 #include "../drivers/draw.h"
+#include "modules.h"
 
 static int l_draw_text(lua_State* L) {
 	int x = luaL_checknumber(L, 1);
@@ -224,8 +225,6 @@ int luaopen_draw(lua_State *L) {
 	
 	return 1;
 }
-
-#define lua_pushintegerconstant(L, n, v) (lua_pushinteger(L, v), lua_setfield(L, -2, n))
 
 int luaopen_color(lua_State *L) {
 	static const luaL_Reg colorlib_f [] = {

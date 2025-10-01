@@ -91,20 +91,50 @@ static int l_get_battery(lua_State* L) {
 
 int luaopen_sys(lua_State *L) {
 	static const luaL_Reg syslib_f [] = {
-		{"get_total_memory", l_get_total_memory},
-		{"get_free_memory", l_get_free_memory},
+		{"totalMemory", l_get_total_memory},
+		{"freeMemory", l_get_free_memory},
 		{"reset", l_reset},
 		{"bootsel", l_bootsel},
-		{"set_output", l_set_output},
-		{"set_pin", l_set_pin},
-		{"get_pin", l_get_pin},
-		{"keyboard_wait", l_keyboard_wait},
-		{"keyboard_poll", l_keyboard_poll},
-		{"get_battery", l_get_battery},
+		{"setOutput", l_set_output},
+		{"setPin", l_set_pin},
+		{"getPin", l_get_pin},
+		{"battery", l_get_battery},
 		{NULL, NULL}
 	};
 	
 	luaL_newlib(L, syslib_f);
 	
+	return 1;
+}
+
+int luaopen_keys(lua_State *L) {
+	static const luaL_Reg keyslib_f [] = {
+		{"wait", l_keyboard_wait},
+		{"poll", l_keyboard_poll},
+		{NULL, NULL}
+	};
+
+	luaL_newlib(L, keyslib_f);
+
+	lua_pushintegerconstant(L, "alt",        0xA1);
+	lua_pushintegerconstant(L, "leftShift",  0xA2);
+	lua_pushintegerconstant(L, "rightShift", 0xA3);
+	lua_pushintegerconstant(L, "control",    0xA5);
+	lua_pushintegerconstant(L, "esc",        0xB1);
+	lua_pushintegerconstant(L, "left",       0xB4);
+	lua_pushintegerconstant(L, "up",         0xB5);
+	lua_pushintegerconstant(L, "down",       0xB6);
+	lua_pushintegerconstant(L, "right",      0xB7);
+	lua_pushintegerconstant(L, "backspace",  '\b');
+	lua_pushintegerconstant(L, "enter",      '\n');
+	lua_pushintegerconstant(L, "capslock",   0xC1);
+	lua_pushintegerconstant(L, "pause",      0xD0);
+	lua_pushintegerconstant(L, "home",       0xD2);
+	lua_pushintegerconstant(L, "delete",     0xD4);
+	lua_pushintegerconstant(L, "end",        0xD5);
+	lua_pushintegerconstant(L, "pageUp",     0xD6);
+	lua_pushintegerconstant(L, "pageDown",   0xD7);
+	lua_pushintegerconstant(L, "tab",        0x09);
+
 	return 1;
 }
