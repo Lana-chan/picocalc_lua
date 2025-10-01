@@ -116,25 +116,40 @@ int luaopen_keys(lua_State *L) {
 
 	luaL_newlib(L, keyslib_f);
 
-	lua_pushintegerconstant(L, "alt",        0xA1);
-	lua_pushintegerconstant(L, "leftShift",  0xA2);
-	lua_pushintegerconstant(L, "rightShift", 0xA3);
-	lua_pushintegerconstant(L, "control",    0xA5);
-	lua_pushintegerconstant(L, "esc",        0xB1);
-	lua_pushintegerconstant(L, "left",       0xB4);
-	lua_pushintegerconstant(L, "up",         0xB5);
-	lua_pushintegerconstant(L, "down",       0xB6);
-	lua_pushintegerconstant(L, "right",      0xB7);
-	lua_pushintegerconstant(L, "backspace",  '\b');
-	lua_pushintegerconstant(L, "enter",      '\n');
-	lua_pushintegerconstant(L, "capslock",   0xC1);
-	lua_pushintegerconstant(L, "pause",      0xD0);
-	lua_pushintegerconstant(L, "home",       0xD2);
-	lua_pushintegerconstant(L, "delete",     0xD4);
-	lua_pushintegerconstant(L, "end",        0xD5);
-	lua_pushintegerconstant(L, "pageUp",     0xD6);
-	lua_pushintegerconstant(L, "pageDown",   0xD7);
-	lua_pushintegerconstant(L, "tab",        0x09);
+	lua_pushintegerconstant(L, "alt",        KEY_ALT);
+	lua_pushintegerconstant(L, "leftShift",  KEY_LSHIFT);
+	lua_pushintegerconstant(L, "rightShift", KEY_RSHIFT);
+	lua_pushintegerconstant(L, "control",    KEY_CONTROL);
+	lua_pushintegerconstant(L, "esc",        KEY_ESC);
+	lua_pushintegerconstant(L, "left",       KEY_LEFT);
+	lua_pushintegerconstant(L, "up",         KEY_UP);
+	lua_pushintegerconstant(L, "down",       KEY_DOWN);
+	lua_pushintegerconstant(L, "right",      KEY_RIGHT);
+	lua_pushintegerconstant(L, "backspace",  KEY_BACKSPACE);
+	lua_pushintegerconstant(L, "enter",      KEY_ENTER);
+	lua_pushintegerconstant(L, "capslock",   KEY_CAPSLOCK);
+	lua_pushintegerconstant(L, "pause",      KEY_PAUSE);
+	lua_pushintegerconstant(L, "home",       KEY_HOME);
+	lua_pushintegerconstant(L, "delete",     KEY_DELETE);
+	lua_pushintegerconstant(L, "end",        KEY_END);
+	lua_pushintegerconstant(L, "pageUp",     KEY_PAGEUP);
+	lua_pushintegerconstant(L, "pageDown",   KEY_PAGEDOWN);
+	lua_pushintegerconstant(L, "tab",        KEY_TAB);
+
+	lua_newtable(L);
+	lua_pushintegerconstant(L, "pressed",  KEY_STATE_PRESSED);
+	lua_pushintegerconstant(L, "released", KEY_STATE_RELEASED);
+	lua_pushintegerconstant(L, "hold",     KEY_STATE_HOLD);
+	lua_pushintegerconstant(L, "longHold", KEY_STATE_LONG_HOLD);
+	lua_setfield(L, -2, "state");
+
+	lua_newtable(L);
+	lua_pushintegerconstant(L, "ctrl",       MOD_CONTROL);
+	lua_pushintegerconstant(L, "alt",        MOD_ALT);
+	lua_pushintegerconstant(L, "shift",      MOD_SHIFT);
+	lua_pushintegerconstant(L, "leftShift",  MOD_LSHIFT);
+	lua_pushintegerconstant(L, "rightShift", MOD_RSHIFT);
+	lua_setfield(L, -2, "modifier");
 
 	return 1;
 }

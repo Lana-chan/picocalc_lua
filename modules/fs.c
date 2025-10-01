@@ -191,8 +191,14 @@ static int fs_seek(lua_State* L) {
 	static const int mode[] = {SEEK_SET, SEEK_CUR, SEEK_END};
 	static const char *const modenames[] = {"set", "cur", "end", NULL};
 	FIL* fp = checkfile(L);
-	int op = luaL_checkoption(L, 2, "cur", modenames);
-	FSIZE_t offset = luaL_optinteger(L, 3, 0);
+	int op = 1;
+	FSIZE_t offset = 0;
+	if (lua_type(L, 2) == LUA_TNUMBER) {
+		offset = luaL_optinteger(L, 2, 0);
+	} else {
+		op = luaL_checkoption(L, 2, "cur", modenames);
+		offset = luaL_optinteger(L, 3, 0);
+	}
 	FRESULT result;
 
 	if (offset != 0) {
@@ -344,7 +350,7 @@ static int fs_mkdir(lua_State* L) {
 //Volume Management and System Configuration
 //f_getfree - Get free space on the volume
 static int fs_getfree(lua_State* L) {
-	const char* path = luaL_checkstring(L, 1);
+	const char* path = luaL_optstring(L, 1, "");
 
 	FATFS *fs;
 	DWORD fre_clust, fre_sect, tot_sect;
