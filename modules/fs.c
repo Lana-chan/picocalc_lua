@@ -125,6 +125,12 @@ static int fs_readAll(lua_State* L) {
 // read until newline
 static int fs_readLine(lua_State* L) {
 	FIL* fp = checkfile(L);
+
+	if (f_eof(fp)) {
+		lua_pushnil(L);
+		return 1;
+	}
+
 	FSIZE_t old_fptr = fp->fptr;
 
 	char c;
@@ -133,7 +139,8 @@ static int fs_readLine(lua_State* L) {
 		if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
 	}
 	// length of file from old_fptr until newline, minus newline
-	UINT to_read = fp->fptr - old_fptr -1;
+	UINT to_read = fp->fptr - old_fptr;
+	if (c == '\n') to_read--;
 	UINT read;
 	f_lseek(fp, old_fptr);
 	
@@ -142,13 +149,15 @@ static int fs_readLine(lua_State* L) {
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
 
 	// skip that newline
-	f_read(fp, &c, 1, NULL);
+	if (c == '\n') f_lseek(fp, fp->fptr + 1);
 
 	if (read > 0) {
 		lua_pushlstring(L, buffer, read);
 	} else {
-		lua_pushnil(L);
+		if (buffer) free(buffer);
+		lua_pushlstring(L, "", 0);
 	}
+
 	return 1;
 }
 
@@ -293,11 +302,9 @@ static int fs_isReadOnly(lua_State* L) {
 }
 
 // does path exist?
-static int fs_exists(lua_State* L) {
+static int l_fs_exists(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
-	FILINFO info;
-	FRESULT result = f_stat(path, &info);
-	lua_pushboolean(L, result == FR_OK && info.fname[0] != 0);
+	lua_pushboolean(L, fs_exists(path));
 	return 1;
 }
 
@@ -335,6 +342,32 @@ static int fs_rename(lua_State* L) {
 	const char* new_path = luaL_checkstring(L, 2);
 	FRESULT result = f_rename(old_path, new_path);
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
+	return 0;
+}
+
+static int fs_copy(lua_State* L) {
+	const char* src_path = luaL_checkstring(L, 1);
+	const char* tgt_path = luaL_checkstring(L, 2);
+	FIL src, tgt;
+	FRESULT result;
+	char buffer[8192];
+	UINT read;
+
+	result = f_open(&src, src_path, FA_READ);
+	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
+	result = f_open(&tgt, tgt_path, FA_CREATE_NEW | FA_WRITE);
+	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
+
+	while(!f_eof(&src)) {
+		result = f_read(&src, buffer, sizeof(buffer), &read);
+		if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
+		result = f_write(&tgt, buffer, read, NULL);
+		if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
+	}
+
+	f_close(&src);
+	f_close(&tgt);
+
 	return 0;
 }
 
@@ -380,7 +413,7 @@ getDir(path)	Returns the parent directory portion of a path.
 -isReadOnly(path)	Returns whether a path is read-only.
 -makeDir(path)	Creates a directory, and any missing parents, at the specified path.
 -move(path, dest)	Moves a file or directory from one path to another.
-copy(path, dest)	Copies a file or directory to a new path.
+-copy(path, dest)	Copies a file or directory to a new path.
 -delete(path)	Deletes a file or directory.
 -open(path, mode)	Opens a file for reading or writing at a path.
 getDrive(path)	Returns the name of the mount that the specified path is located on.
@@ -411,9 +444,10 @@ int luaopen_fs(lua_State *L) {
 		{"isDir", fs_isDir},
 		{"isReadOnly", fs_isReadOnly},
 		{"attributes", fs_attribs},
-		{"exists", fs_exists},
+		{"exists", l_fs_exists},
 		{"delete", fs_delete},
 		{"move", fs_rename},
+		{"copy", fs_copy},
 		{"getFreeSpace", fs_getfree},
 		{NULL, NULL}
 	};

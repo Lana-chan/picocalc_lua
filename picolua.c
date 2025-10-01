@@ -26,6 +26,7 @@
 #include <lauxlib.h>
 
 #define PROMPT "lua> "
+#define STARTUP_FILE "main.lua"
 
 extern const char* GIT_DESC;
 
@@ -77,7 +78,7 @@ int main() {
 	luaL_openlibs(L);
 
 	modules_register_wrappers(L);
-	fs_mount();
+	int mounted = fs_mount();
 
 	printf("    \x1b[93mPicoCalc Lua\x1b[m %s\n", GIT_DESC);
 	printf("    %u bytes free\n", get_free_memory());
@@ -85,14 +86,12 @@ int main() {
 	draw_fifo_fill_circle(7, 9, 5, RGB(100,100,255));
 	draw_fifo_fill_circle(14, 2, 2, RGB(100,100,255));
 	draw_fifo_fill_circle(9, 8, 2, RGB(255,255,255));
+	if (mounted) {
+		printf("\x1b[92mSD card mounted!\x1b[m\n");
 
-	char* script = fs_readfile("main.lua");
-	if (script != NULL) {
-		if (luaL_loadbuffer(L, script, strlen(script), "=main.lua") != LUA_OK || lua_pcall(L, 0, 0, 0) != LUA_OK) {
-			const char *msg = lua_tostring(L, -1);
-			lua_writestringerror("%s\n", msg);
+		if (fs_exists(STARTUP_FILE)) {
+			luaL_dofile(L, STARTUP_FILE);
 		}
-		free(script);
 	}
 
 	while (1) {

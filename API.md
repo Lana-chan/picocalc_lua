@@ -268,6 +268,13 @@ Moves a path to another, can be used to rename files
 1. `source : string` - Path to be moved
 2. `target : string` - Destination of the new path
 
+## `move(source, target)`
+Copies a file to another, does not work on directories
+
+**Parameters**
+1. `source : string` - File to be copied
+2. `target : string` - Destination of the new file
+
 ## `getFreeSpace(path)`
 Gets the available disk space
 

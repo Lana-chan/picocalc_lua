@@ -70,25 +70,8 @@ int fs_unmount() {
 	return f_unmount("") == FR_OK;
 }
 
-char* fs_readfile(const char* path) {
-	FIL fp;
-	FRESULT result = f_open(&fp, path, FA_READ);
-	if (result != FR_OK) return NULL;
-	FSIZE_t size = f_size(&fp);
-	char* buffer = malloc(size + 1);
-	if (buffer == NULL) {
-		f_close(&fp);
-		return NULL;
-	}
-	UINT read;
-	result = f_read(&fp, buffer, size, &read);
-	if (result != FR_OK) {
-		f_close(&fp);
-		return NULL;
-	}
-	buffer[size] = '\0';
-	return buffer;
-}
-
-int fs_writefile(const char* path, const char* data, int length) {
+int fs_exists(const char* path) {
+	FILINFO info;
+	FRESULT result = f_stat(path, &info);
+	return result == FR_OK && info.fname[0] != 0;
 }
