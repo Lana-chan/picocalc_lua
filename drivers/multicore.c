@@ -18,31 +18,19 @@ void handle_multicore_fifo() {
 	}
 }
 
-// these exist only because the calls were originally to timeout functions which return values
-void multicore_fifo_push(uint32_t value) {
-	multicore_fifo_push_blocking_inline(value);
-}
-
-bool multicore_fifo_pop(uint32_t* value) {
-	*value = multicore_fifo_pop_blocking_inline();
-	return true;
-}
-
 void multicore_fifo_push_string(const char* string) {
 	size_t len = strlen(string);
-	multicore_fifo_push_timeout_us(len, FIFO_TIMEOUT);
-	while(*string) {
-		multicore_fifo_push_timeout_us(*string, FIFO_TIMEOUT);
-		string++;
+	multicore_fifo_push_blocking_inline(len);
+	for (int i = 0; i < len; i++) {
+		multicore_fifo_push_blocking_inline(string[i]);
 	}
 }
 
 char* multicore_fifo_pop_string() {
-	uint32_t len;
-	if (!multicore_fifo_pop(&len)) return NULL;
+	uint32_t len = multicore_fifo_pop_blocking_inline();
 	char* string = malloc((size_t)len+1);
 	for (int i = 0; i < len; i++) {
-		if (multicore_fifo_rvalid()) string[i] = multicore_fifo_pop_blocking();
+		if (multicore_fifo_rvalid()) string[i] = multicore_fifo_pop_blocking_inline();
 		else string[i] = 0;
 	}
 	string[len] = 0;

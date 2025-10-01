@@ -353,11 +353,11 @@ int lcd_fifo_receiver(uint32_t message) {
 		//case FIFO_DRAW:
 
 		case FIFO_LCD_FILL:
-			if (!multicore_fifo_pop(&fg)) return 1;
-			if (!multicore_fifo_pop(&x)) return 1;
-			if (!multicore_fifo_pop(&y)) return 1;
-			if (!multicore_fifo_pop(&width)) return 1;
-			if (!multicore_fifo_pop(&height)) return 1;
+			fg = multicore_fifo_pop_blocking_inline();
+			x = multicore_fifo_pop_blocking_inline();
+			y = multicore_fifo_pop_blocking_inline();
+			width = multicore_fifo_pop_blocking_inline();
+			height = multicore_fifo_pop_blocking_inline();
 			lcd_fill((u16)fg, (int)x, (int)y, (int)width, (int)height);
 			return 1;
 
@@ -366,26 +366,26 @@ int lcd_fifo_receiver(uint32_t message) {
 			return 1;
 
 		case FIFO_LCD_CHAR:
-			if (!multicore_fifo_pop(&x)) return 1;
-			if (!multicore_fifo_pop(&y)) return 1;
-			if (!multicore_fifo_pop(&fg)) return 1;
-			if (!multicore_fifo_pop(&bg)) return 1;
-			if (!multicore_fifo_pop(&c)) return 1;
+			x = multicore_fifo_pop_blocking_inline();
+			y = multicore_fifo_pop_blocking_inline();
+			fg = multicore_fifo_pop_blocking_inline();
+			bg = multicore_fifo_pop_blocking_inline();
+			c = multicore_fifo_pop_blocking_inline();
 			lcd_draw_char((int)x, (int)y, (u16)fg, (u16)bg, (char)c);
 			return 1;
 
 		case FIFO_LCD_TEXT:
-			if (!multicore_fifo_pop(&x)) return 1;
-			if (!multicore_fifo_pop(&y)) return 1;
-			if (!multicore_fifo_pop(&fg)) return 1;
-			if (!multicore_fifo_pop(&bg)) return 1;
+			x = multicore_fifo_pop_blocking_inline();
+			y = multicore_fifo_pop_blocking_inline();
+			fg = multicore_fifo_pop_blocking_inline();
+			bg = multicore_fifo_pop_blocking_inline();
 			text = multicore_fifo_pop_string();
 			lcd_draw_text((int)x, (int)y, (u16)fg, (u16)bg, text);
 			free(text);
 			return 1;
 
 		case FIFO_LCD_SCROLL:
-			if (!multicore_fifo_pop(&height)) return 1;
+			height = multicore_fifo_pop_blocking_inline();
 			lcd_scroll((int)height);
 			return 1;
 
@@ -397,33 +397,33 @@ int lcd_fifo_receiver(uint32_t message) {
 //void lcd_fifo_draw(u16* pixels, int x, int y, int width, int height);
 
 void lcd_fifo_fill(u16 color, int x, int y, int width, int height) {
-	multicore_fifo_push(FIFO_LCD_FILL);
-	multicore_fifo_push(color);
-	multicore_fifo_push(x);
-	multicore_fifo_push(y);
-	multicore_fifo_push(width);
-	multicore_fifo_push(height);
+	multicore_fifo_push_blocking_inline(FIFO_LCD_FILL);
+	multicore_fifo_push_blocking_inline(color);
+	multicore_fifo_push_blocking_inline(x);
+	multicore_fifo_push_blocking_inline(y);
+	multicore_fifo_push_blocking_inline(width);
+	multicore_fifo_push_blocking_inline(height);
 }
 
 int lcd_fifo_clear() {
-	multicore_fifo_push(FIFO_LCD_CLEAR);
+	multicore_fifo_push_blocking_inline(FIFO_LCD_CLEAR);
 }
 
 void lcd_fifo_draw_char(int x, int y, u16 fg, u16 bg, char c) {
-	multicore_fifo_push(FIFO_LCD_CHAR);
-	multicore_fifo_push(x);
-	multicore_fifo_push(y);
-	multicore_fifo_push(fg);
-	multicore_fifo_push(bg);
-	multicore_fifo_push(c);
+	multicore_fifo_push_blocking_inline(FIFO_LCD_CHAR);
+	multicore_fifo_push_blocking_inline(x);
+	multicore_fifo_push_blocking_inline(y);
+	multicore_fifo_push_blocking_inline(fg);
+	multicore_fifo_push_blocking_inline(bg);
+	multicore_fifo_push_blocking_inline(c);
 }
 
 void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text) {
-	multicore_fifo_push(FIFO_LCD_TEXT);
-	multicore_fifo_push(x);
-	multicore_fifo_push(y);
-	multicore_fifo_push(fg);
-	multicore_fifo_push(bg);
+	multicore_fifo_push_blocking_inline(FIFO_LCD_TEXT);
+	multicore_fifo_push_blocking_inline(x);
+	multicore_fifo_push_blocking_inline(y);
+	multicore_fifo_push_blocking_inline(fg);
+	multicore_fifo_push_blocking_inline(bg);
 	multicore_fifo_push_string(text);
 }
 
@@ -438,6 +438,6 @@ void lcd_fifo_printf(int x, int y, u16 fg, u16 bg, const char* format, ...) {
 }
 
 void lcd_fifo_scroll(int lines) {
-	multicore_fifo_push(FIFO_LCD_SCROLL);
-	multicore_fifo_push(lines);
+	multicore_fifo_push_blocking_inline(FIFO_LCD_SCROLL);
+	multicore_fifo_push_blocking_inline(lines);
 }
