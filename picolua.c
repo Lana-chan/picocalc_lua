@@ -40,15 +40,6 @@ static void l_print (lua_State *L) {
 	}
 }
 
-void core1() {
-	lcd_init();
-	multicore_fifo_drain();
-
-	while (true) {
-		handle_multicore_fifo();
-	}
-}
-
 void check_interrupt(lua_State *L, lua_Debug *ar) {
 	input_event_t event = keyboard_poll_ex(false);
 	if (event.code == KEY_BREAK) {
@@ -65,7 +56,7 @@ int main() {
 	size_t len;
 	char ch;
 
-	multicore_launch_core1(core1);
+	multicore_launch_core1(multicore_main);
 	sleep_ms(200);
 
 	//stdio_init_all();

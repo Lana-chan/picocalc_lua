@@ -1,8 +1,5 @@
 #include "multicore.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "lcd.h"
@@ -18,21 +15,30 @@ void handle_multicore_fifo() {
 	}
 }
 
-void multicore_fifo_push_string(const char* string) {
-	size_t len = strlen(string);
-	multicore_fifo_push_blocking_inline(len);
-	for (int i = 0; i < len; i++) {
-		multicore_fifo_push_blocking_inline(string[i]);
+void multicore_fifo_push_string(const char* source) {
+	size_t len = strlen(source);
+	char* dest = malloc((size_t)len+1);
+	if (!dest) {
+		multicore_fifo_push_blocking_inline(0);
+		multicore_fifo_push_blocking_inline((uint32_t)NULL);
 	}
+	strncpy(dest, source, len);
+	dest[len] = 0;
+	multicore_fifo_push_blocking_inline(len);
+	multicore_fifo_push_blocking_inline((uint32_t)dest);
 }
 
-char* multicore_fifo_pop_string() {
-	uint32_t len = multicore_fifo_pop_blocking_inline();
-	char* string = malloc((size_t)len+1);
-	for (int i = 0; i < len; i++) {
-		if (multicore_fifo_rvalid()) string[i] = multicore_fifo_pop_blocking_inline();
-		else string[i] = 0;
+size_t multicore_fifo_pop_string(char** string) {
+	size_t len = multicore_fifo_pop_blocking_inline();
+	*string = (char*)multicore_fifo_pop_blocking_inline();
+	return len;
+}
+
+void multicore_main() {
+	lcd_init();
+	multicore_fifo_drain();
+
+	while (true) {
+		handle_multicore_fifo();
 	}
-	string[len] = 0;
-	return string;
 }

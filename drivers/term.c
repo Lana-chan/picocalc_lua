@@ -52,10 +52,11 @@ typedef struct {
 	u16 fg, bg;
 	char stack[ANSI_STACK_SIZE];
 	int stack_size;
+	bool cursor_enabled;
 } ansi_t;
 
 static ansi_t ansi = {
-	.state=AnsiNone, .x=0, .y=0, .fg=palette[DEFAULT_FG], .bg=palette[DEFAULT_BG], .stack={0}, .stack_size=0
+	.state=AnsiNone, .x=0, .y=0, .fg=palette[DEFAULT_FG], .bg=palette[DEFAULT_BG], .stack={0}, .stack_size=0, .cursor_enabled=true
 };
 
 static int ansi_len_to_lcd_x(int len) {
@@ -109,12 +110,12 @@ void term_erase_line(int y) {
 	lcd_fifo_fill(ansi.bg, 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
 }
 
-static void draw_cursor(int x, int y) {
-	lcd_fifo_fill(ansi.fg, x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
+static void draw_cursor() {
+	if (ansi.cursor_enabled) lcd_fifo_fill(ansi.fg, ansi.x * GLYPH_WIDTH, (ansi.y+1) * GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
 }
 
-static void erase_cursor(int x, int y) {
-	lcd_fifo_fill(ansi.bg, x * GLYPH_WIDTH, y * GLYPH_HEIGHT, GLYPH_WIDTH, GLYPH_HEIGHT);
+static void erase_cursor() {
+	if (ansi.cursor_enabled) lcd_fifo_fill(ansi.bg, ansi.x * GLYPH_WIDTH, (ansi.y+1) * GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
 }
 
 void term_write(const char* text) {
@@ -143,7 +144,7 @@ void term_blit(const char* text, const char* fg, const char* bg) {
 }
 
 static void out_char(char c) {
-	erase_cursor(ansi.x, ansi.y);
+	erase_cursor();
 	if (c == '\n') {
 		ansi.x = 0;
 		ansi.y += 1;
@@ -165,7 +166,7 @@ static void out_char(char c) {
 	if (ansi.y >= TERM_HEIGHT) {
 		lcd_fifo_scroll((ansi.y - (TERM_HEIGHT - 1)) * GLYPH_HEIGHT);
 	}
-	draw_cursor(ansi.x, ansi.y);
+	draw_cursor();
 }
 
 static void stdio_picocalc_out_chars(const char *buf, int length) {
@@ -266,9 +267,9 @@ static void term_erase_input(int size) {
 static void term_draw_input(char* buffer, int size, int cursor) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		if (i == cursor) lcd_fifo_fill(ansi.fg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
-		else if (i < size) lcd_fifo_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
+		if (i < size) lcd_fifo_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
 		else lcd_fifo_fill(ansi.bg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		if (ansi.cursor_enabled && i == cursor) lcd_fifo_fill(ansi.fg, x, y + GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
 	}
 	if (ansi.y + (size + ansi.x) / TERM_WIDTH >= TERM_HEIGHT) lcd_fifo_scroll((ansi.y + (size + ansi.x) / TERM_WIDTH - (TERM_HEIGHT-1)) * GLYPH_HEIGHT);
 }

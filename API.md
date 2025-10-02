@@ -130,7 +130,7 @@ Returns keyboard values immediately
 **Returns**
 1. `number` - One of `keys.state`
 2. `number` - Bitfield maskable by `keys.modifier`
-3. `number` - Key code or character, 0 if no key was pressed
+3. `string` - Key code or character, 0 if no key was pressed
 
 ## `wait()`
 Same as `poll()` but halts execution until a key is pressed
@@ -138,11 +138,11 @@ Same as `poll()` but halts execution until a key is pressed
 **Returns**
 1. `number` - One of `keys.state`
 2. `number` - Bitfield maskable by `keys.modifier`
-3. `number` - Key code or character
+3. `string` - Key code or character
 
 ## Constants
 
-* `alt`     
+* `alt`
 * `leftShift`
 * `rightShift`
 * `control`
@@ -355,7 +355,7 @@ Gets the current terminal cursor position
 2. `number` - The vertical cursor position in characters
 
 ## `setCursorPos(x, y)`
-Sets the terminal cursor position
+Sets the terminal cursor position, starting at (1, 1) for top left
 
 **Parameters**
 1. `x : number` - The horizontal cursor position in characters

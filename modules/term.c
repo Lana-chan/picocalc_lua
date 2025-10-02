@@ -17,7 +17,9 @@ static int l_term_getCursorPos(lua_State* L) {
 static int l_term_setCursorPos(lua_State* L) {
 	int x = luaL_checkinteger(L, 1);
 	int y = luaL_checkinteger(L, 2);
-	term_set_pos(x, y);
+	x = (x < 1 ? 1 : (x > TERM_WIDTH ? TERM_WIDTH : x));
+	y = (y < 1 ? 1 : (y > TERM_HEIGHT ? TERM_HEIGHT : y));
+	term_set_pos(x-1, y-1);
 	return 0;
 }
 

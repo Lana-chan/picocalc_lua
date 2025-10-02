@@ -379,7 +379,7 @@ int lcd_fifo_receiver(uint32_t message) {
 			y = multicore_fifo_pop_blocking_inline();
 			fg = multicore_fifo_pop_blocking_inline();
 			bg = multicore_fifo_pop_blocking_inline();
-			text = multicore_fifo_pop_string();
+			multicore_fifo_pop_string(&text);
 			lcd_draw_text((int)x, (int)y, (u16)fg, (u16)bg, text);
 			free(text);
 			return 1;
