@@ -6,6 +6,7 @@ This is a simple lua interpreter for PicoCalc. It contains a REPL, basic API to 
 * Keyboard and lcd drivers based on https://github.com/hisptoot/picocalc_luckfox_lyra
 * Font comes from https://polyducks.itch.io/kitchen-sink-textmode-font
 * Filesystem based on https://github.com/elehobica/pico_fatfs.git
+* Editor taken from https://github.com/cc-tweaked/CC-Tweaked
 
 ## Dependencies
 
