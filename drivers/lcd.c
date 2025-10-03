@@ -89,6 +89,10 @@ void lcd_draw(u16* pixels, int x, int y, int width, int height) {
 
 void lcd_fill(u16 color, int x, int y, int width, int height) {
 	y %= MEM_HEIGHT;
+
+	x = (x < 0 ? 0 : (x >= WIDTH ? WIDTH : x));
+	width = (width < 0 ? 0 : (x + width - 1 >= WIDTH ? WIDTH - x - 1 : width));
+
 	lcd_set_region(x, y, x + width - 1, y + height - 1, REGION_WRITE);
 
 	gpio_put(LCD_DC, 1);

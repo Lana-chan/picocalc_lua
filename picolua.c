@@ -30,6 +30,7 @@
 
 extern const char* GIT_DESC;
 lua_State *L;
+history_t term_history = {{0}, 0};
 
 static void l_print (lua_State *L) {
 	int n = lua_gettop(L);
@@ -82,7 +83,9 @@ int main() {
 
 	while (1) {
 		char line[256];
-		int size = term_readline(PROMPT, line, 256);
+		term_set_blinking_cursor(true);
+		int size = term_readline(PROMPT, line, 256, &term_history);
+		term_set_blinking_cursor(false);
 
 		lua_settop(L, 0);
 		//int num_results = 1;

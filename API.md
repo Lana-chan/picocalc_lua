@@ -371,6 +371,18 @@ Sets the terminal cursor position, starting at (1, 1) for top left
 1. `x : number` - The horizontal cursor position in characters
 2. `y : number` - The vertical cursor position in characters
 
+## `getCursorBlink()`
+Gets whether the terminal cursor currently blinks
+
+**Returns**
+1. `boolean` - Whether or not the cursor blink is active
+
+## `setCursorBlink(blink)`
+Sets the terminal cursor blinking
+
+**Parameters**
+1. `blink : boolean` - Whether or not the cursor blink should be active
+
 ## `getSize()`
 Gets the terminal size
 

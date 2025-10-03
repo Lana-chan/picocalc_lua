@@ -13,6 +13,7 @@
 stdio_driver_t stdio_picocalc;
 static void (*chars_available_callback)(void *) = NULL;
 static void *chars_available_param = NULL;
+static repeating_timer_t cursor_timer;
 
 static void set_chars_available_callback(void (*fn)(void *), void *param) {
 	chars_available_callback = fn;
@@ -63,15 +64,17 @@ enum {
 
 typedef struct {
 	int state;
-	int x, y;
+	int x, y, cx, cy, len;
 	u16 fg, bg;
 	char stack[ANSI_STACK_SIZE];
 	int stack_size;
 	bool cursor_enabled;
+	bool cursor_visible;
+	bool cursor_manual;
 } ansi_t;
 
 static ansi_t ansi = {
-	.state=AnsiNone, .x=0, .y=0, .fg=palette[DEFAULT_FG], .bg=palette[DEFAULT_BG], .stack={0}, .stack_size=0, .cursor_enabled=true
+	.state=AnsiNone, .x=0, .y=0, .fg=palette[DEFAULT_FG], .bg=palette[DEFAULT_BG], .stack={0}, .stack_size=0, .cursor_enabled=false
 };
 
 static int ansi_len_to_lcd_x(int len) {
@@ -82,6 +85,58 @@ static int ansi_len_to_lcd_y(int len) {
 	return (ansi.y + (len + ansi.x) / TERM_WIDTH) * GLYPH_HEIGHT;
 }
 
+void term_clear() {
+	ansi.x = ansi.y = ansi.len = 0;
+	lcd_fifo_clear();
+	lcd_fifo_scroll(0);
+}
+
+void term_erase_line(int y) {
+	lcd_fifo_fill(ansi.bg, 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
+}
+
+static void draw_cursor() {
+	if (ansi.cursor_enabled && !ansi.cursor_visible) {
+		ansi.cx = ansi_len_to_lcd_x(ansi.len);
+		ansi.cy = ansi_len_to_lcd_y(ansi.len);
+		// this used to be an underline but without a buffer of what it draws over, it causes too many artifacts
+		lcd_fifo_fill(ansi.fg, ansi.cx, ansi.cy, 1, GLYPH_HEIGHT - 1);
+		ansi.cursor_visible = true;
+	}
+}
+
+static void erase_cursor() {
+	if (ansi.cursor_enabled && ansi.cursor_visible) {
+		lcd_fifo_fill(ansi.bg, ansi.cx, ansi.cy, 1, GLYPH_HEIGHT - 1);
+		ansi.cursor_visible = false;
+	}
+}
+
+static bool on_cursor_timer(repeating_timer_t *rt) {
+	if (!ansi.cursor_manual && ansi.cursor_visible) {
+		erase_cursor();
+	} else {
+		ansi.cursor_manual = false;
+		draw_cursor();
+	}
+	return true;
+}
+
+bool term_get_blinking_cursor() {
+	return ansi.cursor_enabled;
+}
+
+void term_set_blinking_cursor(bool enabled) {
+	if (enabled && !ansi.cursor_enabled) {
+		ansi.cursor_enabled = true;
+		add_repeating_timer_ms(-300, on_cursor_timer, NULL, &cursor_timer);
+	} else if (!enabled && ansi.cursor_enabled) {
+		erase_cursor();
+		ansi.cursor_enabled = false;
+		cancel_repeating_timer(&cursor_timer);
+	}
+}
+
 int term_get_x() {
 	return ansi.x;
 }
@@ -90,8 +145,11 @@ int term_get_y() {
 }
 
 void term_set_pos(int x, int y) {
+	ansi.cursor_manual = true;
+	erase_cursor();
 	if (x >= 0 && x < TERM_WIDTH) ansi.x = x;
 	if (y >= 0 && y < TERM_HEIGHT) ansi.y = y;
+	draw_cursor();
 }
 
 int term_get_width() {
@@ -113,24 +171,6 @@ void term_set_fg(u16 color) {
 }
 void term_set_bg(u16 color) {
 	ansi.bg = color;
-}
-
-void term_clear() {
-	ansi.x = ansi.y = 0;
-	lcd_fifo_clear();
-	lcd_fifo_scroll(0);
-}
-
-void term_erase_line(int y) {
-	lcd_fifo_fill(ansi.bg, 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
-}
-
-static void draw_cursor() {
-	if (ansi.cursor_enabled) lcd_fifo_fill(ansi.fg, ansi.x * GLYPH_WIDTH, (ansi.y+1) * GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
-}
-
-static void erase_cursor() {
-	if (ansi.cursor_enabled) lcd_fifo_fill(ansi.bg, ansi.x * GLYPH_WIDTH, (ansi.y+1) * GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
 }
 
 void term_write(const char* text) {
@@ -159,7 +199,6 @@ void term_blit(const char* text, const char* fg, const char* bg) {
 }
 
 static void out_char(char c) {
-	erase_cursor();
 	if (c == '\n') {
 		ansi.x = 0;
 		ansi.y += 1;
@@ -181,7 +220,6 @@ static void out_char(char c) {
 	if (ansi.y >= TERM_HEIGHT) {
 		lcd_fifo_scroll((ansi.y - (TERM_HEIGHT - 1)) * GLYPH_HEIGHT);
 	}
-	draw_cursor();
 }
 
 static void stdio_picocalc_out_chars(const char *buf, int length) {
@@ -285,39 +323,36 @@ static void term_draw_input(char* buffer, int size, int cursor) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
 		if (i < size) lcd_fifo_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
 		else lcd_fifo_fill(ansi.bg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
-		if (ansi.cursor_enabled && i == cursor) lcd_fifo_fill(ansi.fg, x, y + GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
+		//if (ansi.cursor_enabled && i == cursor) lcd_fifo_fill(ansi.fg, x, y + GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
 	}
 	if (ansi.y + (size + ansi.x) / TERM_WIDTH >= TERM_HEIGHT) lcd_fifo_scroll((ansi.y + (size + ansi.x) / TERM_WIDTH - (TERM_HEIGHT-1)) * GLYPH_HEIGHT);
 }
 
-static char* history[32] = {0};
-static int history_current;
-
-static void history_save(int entry, char* text, int size) {
-	if (entry >= 0 && entry < 32) {
-		if (history[entry] != NULL) free(history[entry]);
-		history[entry] = strndup(text, size);
+static void history_save(history_t* history, int entry, char* text, int size) {
+	if (entry >= 0 && entry < HISTORY_MAX) {
+		if (history->buffer[entry] != NULL) free(history->buffer[entry]);
+		history->buffer[entry] = strndup(text, size);
 	}
 }
 
-char** term_get_history() {
-	return history;
-}
-
-int term_readline(char* prompt, char* buffer, int max_length) {
+int term_readline(char* prompt, char* buffer, int max_length, history_t* history) {
 	int cursor = 0;
 	int size = 0;
 
-	history_current = 0;
-	if (history[0] != NULL && history[0][0] != '\0') memmove(history + 1, history, 31 * sizeof(char*));
-	
 	buffer[size] = '\0';
-	history[0] = strdup(buffer);
+
+	if (history) {
+		history->current = 0;
+		if (history->buffer[0] != NULL && history->buffer[0][0] != '\0') memmove(history->buffer + 1, history->buffer, 31 * sizeof(char*));
+		history->buffer[0] = strdup(buffer);
+	}
 
 	stdio_picocalc_out_chars(prompt, strlen(prompt));
 
 	while (true) {
 		input_event_t event = keyboard_wait();
+		ansi.cursor_manual = true;
+		erase_cursor();
 		if (event.state == KEY_STATE_PRESSED) {
 			if (event.code == 'c' && event.modifiers & MOD_CONTROL) {
 				term_erase_input(size);
@@ -331,20 +366,20 @@ int term_readline(char* prompt, char* buffer, int max_length) {
 				ansi.x += size % TERM_WIDTH;
 				ansi.y += size / TERM_WIDTH;
 				stdio_picocalc_out_chars("\n", 1);
-				history_save(0, buffer, size);
+				history_save(history, 0, buffer, size);
 				return size;
-			} else if (event.code == KEY_UP && history_current < 31 && history[history_current + 1] != NULL) {
+			} else if (history && event.code == KEY_UP && history->current < 31 && history->buffer[history->current + 1] != NULL) {
 				term_erase_input(size);
-				history_save(history_current, buffer, size);
-				history_current++;
-				size = cursor = strlen(history[history_current]);
-				memcpy(buffer, history[history_current], size);
-			} else if (event.code == KEY_DOWN && history_current > 0) {
+				history_save(history, history->current, buffer, size);
+				history->current++;
+				size = cursor = strlen(history->buffer[history->current]);
+				memcpy(buffer, history->buffer[history->current], size);
+			} else if (history && event.code == KEY_DOWN && history->current > 0) {
 				term_erase_input(size);
-				history_save(history_current, buffer, size);
-				history_current--;
-				size = cursor = strlen(history[history_current]);
-				memcpy(buffer, history[history_current], size);
+				history_save(history, history->current, buffer, size);
+				history->current--;
+				size = cursor = strlen(history->buffer[history->current]);
+				memcpy(buffer, history->buffer[history->current], size);
 			} else if (event.code == KEY_LEFT) {
 				if (event.modifiers & MOD_CONTROL) {
 					while (cursor > 0 && buffer[cursor] != ' ') cursor--;
@@ -374,6 +409,9 @@ int term_readline(char* prompt, char* buffer, int max_length) {
 			}
 			term_draw_input(buffer, size, cursor);
 		}
+		ansi.len = cursor;
+		draw_cursor();
 	}
+	ansi.len = 0;
 	return 0;
 }

@@ -23,6 +23,17 @@ static int l_term_setCursorPos(lua_State* L) {
 	return 0;
 }
 
+static int l_term_getCursorBlink(lua_State* L) {
+	lua_pushboolean(L, term_get_blinking_cursor());
+	return 1;
+}
+
+static int l_term_setCursorBlink(lua_State* L) {
+	bool blink = lua_toboolean(L, 1);
+	term_set_blinking_cursor(blink);
+	return 0;
+}
+
 static int l_term_getSize(lua_State* L) {
 	lua_pushinteger(L, term_get_width());
 	lua_pushinteger(L, term_get_height());
@@ -80,8 +91,8 @@ static int l_term_blit(lua_State* L) {
 scroll(y)	Move all positions up (or down) by y pixels.
 -getCursorPos()	Get the position of the cursor.
 -setCursorPos(x, y)	Set the position of the cursor.
-getCursorBlink()	Checks if the cursor is currently blinking.
-setCursorBlink(blink)	Sets whether the cursor should be visible (and blinking) at the current cursor position.
+-getCursorBlink()	Checks if the cursor is currently blinking.
+-setCursorBlink(blink)	Sets whether the cursor should be visible (and blinking) at the current cursor position.
 -getSize()	Get the size of the terminal.
 -clear()	Clears the terminal, filling it with the current background colour.
 -clearLine()	Clears the line the cursor is currently on, filling it with the current background colour.
@@ -96,6 +107,8 @@ int luaopen_term(lua_State *L) {
 	static const luaL_Reg termlib_f [] = {
 		{"getCursorPos", l_term_getCursorPos},
 		{"setCursorPos", l_term_setCursorPos},
+		{"getCursorBlink", l_term_getCursorBlink},
+		{"setCursorBlink", l_term_setCursorBlink},
 		{"getSize", l_term_getSize},
 		{"clear", l_term_clear},
 		{"clearLine", l_term_clearLine},
