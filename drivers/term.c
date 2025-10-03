@@ -11,8 +11,23 @@
 #include "keyboard.h"
 
 stdio_driver_t stdio_picocalc;
+static void (*chars_available_callback)(void *) = NULL;
+static void *chars_available_param = NULL;
+
+static void set_chars_available_callback(void (*fn)(void *), void *param) {
+	chars_available_callback = fn;
+	chars_available_param = param;
+}
+
+// Function to be called when characters become available
+void chars_available_notify(void) {
+	if (chars_available_callback) {
+		chars_available_callback(chars_available_param);
+	}
+}
 
 void stdio_picocalc_init() {
+	keyboard_set_key_available_callback(chars_available_notify);
 	stdio_set_driver_enabled(&stdio_picocalc, true);
 }
 
@@ -252,6 +267,7 @@ static int stdio_picocalc_in_chars(char *buf, int length) {
 stdio_driver_t stdio_picocalc = {
 	.out_chars = stdio_picocalc_out_chars,
 	.in_chars = stdio_picocalc_in_chars,
+	.set_chars_available_callback = set_chars_available_callback,
 #if PICO_STDIO_ENABLE_CRLF_SUPPORT
 	.crlf_enabled = true,
 #endif

@@ -125,11 +125,11 @@ Gets the current state of charge of the battery
 # `keys` - Keyboard handling functions
 
 ## `poll()`
-Returns keyboard values immediately
+Returns latest keyboard event without blocking
 
 **Returns**
-1. `number` - One of `keys.state`
-2. `number` - Bitfield maskable by `keys.modifier`
+1. `number` - One of `keys.states`
+2. `number` - Bitfield maskable by `keys.modifiers`
 3. `string` - Key code or character, 0 if no key was pressed
 
 ## `wait()`
@@ -137,8 +137,17 @@ Same as `poll()` but halts execution until a key is pressed
 
 **Returns**
 1. `number` - One of `keys.state`
-2. `number` - Bitfield maskable by `keys.modifier`
+2. `number` - Bitfield maskable by `keys.modifiers`
 3. `string` - Key code or character
+
+## `getState(code)`
+Returns whether or not a specific key is currently pressed
+
+**Parameters**
+1. `code : string` - One of `keys` constants, or key code
+
+**Returns**
+1. `boolean` - True if the key is currently held down, false otherwise
 
 ## Constants
 
@@ -162,14 +171,15 @@ Same as `poll()` but halts execution until a key is pressed
 * `pageDown`
 * `tab`
 
-### `state`
+### `states`
 
+* `idle`
 * `pressed`
 * `released`
 * `hold`
 * `longHold`
 
-### `modifier`
+### `modifiers`
 
 * `control`
 * `alt`

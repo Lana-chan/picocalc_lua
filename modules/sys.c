@@ -90,6 +90,12 @@ static int l_keyboard_wait(lua_State* L) {
 	return 3;
 }
 
+static int l_keyboard_state(lua_State* L) {
+	const char* code = luaL_checkstring(L, 1);
+	lua_pushboolean(L, keyboard_getstate(code[0]) == KEY_STATE_PRESSED);
+	return 1;
+}
+
 static int l_get_battery(lua_State* L) {
 	int battery = get_battery();
 	lua_pushinteger(L, battery);
@@ -118,6 +124,7 @@ int luaopen_keys(lua_State *L) {
 	static const luaL_Reg keyslib_f [] = {
 		{"wait", l_keyboard_wait},
 		{"poll", l_keyboard_poll},
+		{"getState", l_keyboard_state},
 		{"isPrintable", l_keyboard_isprint},
 		{NULL, NULL}
 	};
@@ -145,11 +152,12 @@ int luaopen_keys(lua_State *L) {
 	lua_pushcharconstant(L, "tab",        KEY_TAB);
 
 	lua_newtable(L);
+	lua_pushintegerconstant(L, "idle",     KEY_STATE_IDLE);
 	lua_pushintegerconstant(L, "pressed",  KEY_STATE_PRESSED);
 	lua_pushintegerconstant(L, "released", KEY_STATE_RELEASED);
 	lua_pushintegerconstant(L, "hold",     KEY_STATE_HOLD);
 	lua_pushintegerconstant(L, "longHold", KEY_STATE_LONG_HOLD);
-	lua_setfield(L, -2, "state");
+	lua_setfield(L, -2, "states");
 
 	lua_newtable(L);
 	lua_pushintegerconstant(L, "ctrl",       MOD_CONTROL);
@@ -157,7 +165,7 @@ int luaopen_keys(lua_State *L) {
 	lua_pushintegerconstant(L, "shift",      MOD_SHIFT);
 	lua_pushintegerconstant(L, "leftShift",  MOD_LSHIFT);
 	lua_pushintegerconstant(L, "rightShift", MOD_RSHIFT);
-	lua_setfield(L, -2, "modifier");
+	lua_setfield(L, -2, "modifiers");
 
 	return 1;
 }

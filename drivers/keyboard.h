@@ -173,12 +173,14 @@ typedef struct {
 	short code;
 } input_event_t;
 
-extern input_event_t last_event;
+typedef void (*keyboard_callback_t)(void);
 
 int keyboard_init();
-input_event_t keyboard_poll_ex(bool buffered);
 input_event_t keyboard_poll();
 input_event_t keyboard_wait();
 char keyboard_getchar();
+void keyboard_set_key_available_callback(keyboard_callback_t callback);
+void keyboard_set_interrupt_callback(keyboard_callback_t callback);
+unsigned char keyboard_getstate(unsigned char code);
 
 int get_battery();

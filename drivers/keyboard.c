@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdatomic.h>
 
 #include <pico/stdio.h>
 #include <hardware/gpio.h>
@@ -29,12 +30,30 @@ enum {
 	REG_ID_C64_JS = 0x0d,  // joystick io bits
 };
 
-input_event_t last_event = {0, 0, KEY_NONE};
+#define I2C_TIMEOUT 10000
+volatile atomic_bool i2c_in_use = false;
+
+#define KEY_COUNT 256
+unsigned char keystates[KEY_COUNT];
+
+// timer and circular buffer and other ideas taken and modified from BlairLeduc's picocalc-text-starter
+// https://github.com/BlairLeduc/picocalc-text-starter/blob/main/drivers/keyboard.c
+#define KBD_BUFFER_SIZE 32
+static volatile input_event_t rx_buffer[KBD_BUFFER_SIZE];
+static volatile uint16_t rx_head = 0;
+static volatile uint16_t rx_tail = 0;
+static repeating_timer_t key_timer;
+
+keyboard_callback_t key_available_callback = NULL;
+keyboard_callback_t interrupt_callback = NULL;
 
 static int keyboard_modifiers;
 
 static int i2c_kbd_write(unsigned char* data, int size) {
-	int retval = i2c_write_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, 500000);
+	if (atomic_load(&i2c_in_use) == true) return 0;
+	atomic_store(&i2c_in_use, true);
+	int retval = i2c_write_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, I2C_TIMEOUT * size);
+	atomic_store(&i2c_in_use, false);
 	if (retval == PICO_ERROR_GENERIC || retval == PICO_ERROR_TIMEOUT) {
 		printf("i2c_kbd_write: i2c write error\n");
 		return 0;
@@ -43,7 +62,10 @@ static int i2c_kbd_write(unsigned char* data, int size) {
 }
 
 static int i2c_kbd_read(unsigned char* data, int size) {
-	int retval = i2c_read_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, 500000);
+	if (atomic_load(&i2c_in_use) == true) return 0;
+	atomic_store(&i2c_in_use, true);
+	int retval = i2c_read_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, I2C_TIMEOUT * size);
+	atomic_store(&i2c_in_use, false);
 	if (retval == PICO_ERROR_GENERIC || retval == PICO_ERROR_TIMEOUT) {
 		printf("i2c_kbd_read: i2c read error\n");
 		return 0;
@@ -85,41 +107,72 @@ static void update_modifiers(unsigned short value) {
 #include "pico/bootrom.h"
 #include "hardware/watchdog.h"
 
-static void keyboard_check_special_keys(unsigned short value) {
-	if ((value & 0xff) == KEY_STATE_RELEASED && keyboard_modifiers == (MOD_CONTROL|MOD_ALT)) {
-		if ((value >> 8) == KEY_F1) {
-			printf("rebooting to usb boot\n");
-			reset_usb_boot(0, 0);
-		} else if ((value >> 8) == KEY_DELETE) {
-			printf("rebooting via watchdog\n");
-			watchdog_reboot(0, 0, 0);
-			watchdog_enable(0, 1);
+static void keyboard_check_special_keys(unsigned char state, unsigned char code) {
+	if (state == KEY_STATE_RELEASED) {
+		if (keyboard_modifiers == (MOD_CONTROL|MOD_ALT)) {
+			if (code == KEY_F1) {
+				printf("rebooting to usb boot\n");
+				reset_usb_boot(0, 0);
+			} else if (code == KEY_DELETE) {
+				printf("rebooting via watchdog\n");
+				watchdog_reboot(0, 0, 0);
+				watchdog_enable(0, 1);
+			}
+		} else {
+			if (interrupt_callback && code == KEY_BREAK) {
+				interrupt_callback();
+			}
 		}
 	}
 }
 
-input_event_t keyboard_poll_ex(bool buffered) {
-	input_event_t event;
-	if (buffered && last_event.code != KEY_NONE) {
-		event = last_event;
-		last_event.code = KEY_NONE;
-	} else {
-		unsigned short value = i2c_kbd_read_key();
-		update_modifiers(value);
-		keyboard_check_special_keys(value);
-		event = (input_event_t) {value & 0xff, keyboard_modifiers, value >> 8};
-		//if (value != 0 && (value >> 8) != KEY_ALT && (value >> 8) != KEY_CONTROL) printf("key = %d (%02x) / state = %d / modifiers = %02x\n", value >> 8, value >> 8, value & 0xff, keyboard_modifiers);
+static bool on_keyboard_timer(repeating_timer_t *rt) {
+	unsigned short value = i2c_kbd_read_key();
+	if (value == 0) return true; // didn't get a i2c read, don't update anything
+	update_modifiers(value);
+	char state = value & 0xff;
+	char code = value >> 8;
+	keyboard_check_special_keys(state, code);
+	if (state == KEY_STATE_PRESSED) {
+		keystates[code] = KEY_STATE_PRESSED;
+	} else if (state == KEY_STATE_RELEASED) {
+		keystates[code] = KEY_STATE_IDLE;
 	}
-	return event;
+	uint16_t next_head = (rx_head + 1) & (KBD_BUFFER_SIZE - 1);
+	rx_buffer[rx_head] = (input_event_t){state, keyboard_modifiers, code};
+	rx_head = next_head;
+	if (key_available_callback) key_available_callback();
+	return true;
+}
+
+void keyboard_set_key_available_callback(keyboard_callback_t callback) {
+	key_available_callback = callback;
+}
+
+void keyboard_set_interrupt_callback(keyboard_callback_t callback) {
+	interrupt_callback = callback;
+}
+
+bool keyboard_key_available() {
+	return rx_head != rx_tail;
+}
+
+unsigned char keyboard_getstate(unsigned char code) {
+	return keystates[code];
 }
 
 input_event_t keyboard_poll() {
-	return keyboard_poll_ex(true);
+	if (!keyboard_key_available()) return (input_event_t){0, 0, KEY_NONE};
+	input_event_t event = rx_buffer[rx_tail];
+	rx_tail = (rx_tail + 1) & (KBD_BUFFER_SIZE - 1);
+	return event;
 }
 
 input_event_t keyboard_wait_ex(bool ch) {
 	input_event_t event;
 	while(true) { 
+		while (!keyboard_key_available())	tight_loop_contents();
+
 		event = keyboard_poll();
 		if (event.code != KEY_NONE) {
 			if (!ch) { // only returns if it's not a modifier
@@ -150,7 +203,9 @@ int keyboard_init() {
 	gpio_pull_up(KBD_SCL);
 	gpio_pull_up(KBD_SDA);
 	keyboard_modifiers = 0;
+	memset(keystates, KEY_STATE_IDLE, KEY_COUNT);
 	while (i2c_kbd_read_key() != 0); // Drain queue
+	add_repeating_timer_ms(-10, on_keyboard_timer, NULL, &key_timer);
 }
 
 int get_battery() {
