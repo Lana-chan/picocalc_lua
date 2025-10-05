@@ -96,6 +96,11 @@ static int l_keyboard_state(lua_State* L) {
 	return 1;
 }
 
+static int l_keyboard_flush(lua_State* L) {
+	keyboard_flush();
+	return 0;
+}
+
 static int l_get_battery(lua_State* L) {
 	int battery = get_battery();
 	lua_pushinteger(L, battery);
@@ -124,6 +129,7 @@ int luaopen_keys(lua_State *L) {
 	static const luaL_Reg keyslib_f [] = {
 		{"wait", l_keyboard_wait},
 		{"poll", l_keyboard_poll},
+		{"flush", l_keyboard_flush},
 		{"getState", l_keyboard_state},
 		{"isPrintable", l_keyboard_isprint},
 		{NULL, NULL}

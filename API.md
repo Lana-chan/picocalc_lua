@@ -14,9 +14,11 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 - [`keys` - Keyboard handling functions](#keys---keyboard-handling-functions)
 	- [`poll()`](#poll)
 	- [`wait()`](#wait)
+	- [`flush()`](#flush)
+	- [`getState(code)`](#getstatecode)
 	- [Constants](#constants)
-		- [`state`](#state)
-		- [`modifier`](#modifier)
+		- [`states`](#states)
+		- [`modifiers`](#modifiers)
 - [`fs` - Filesystem](#fs---filesystem)
 	- [`open(path, mode)`](#openpath-mode)
 	- [`list(path)`](#listpath)
@@ -28,6 +30,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`exists(path)`](#existspath)
 	- [`delete(path)`](#deletepath)
 	- [`move(source, target)`](#movesource-target)
+	- [`copy(source, target)`](#copysource-target)
 	- [`getFreeSpace(path)`](#getfreespacepath)
 	- [`FileHandle:read([size])`](#filehandlereadsize)
 	- [`FileHandle:readAll()`](#filehandlereadall)
@@ -40,6 +43,8 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 - [`term` - Text terminal functions](#term---text-terminal-functions)
 	- [`getCursorPos()`](#getcursorpos)
 	- [`setCursorPos(x, y)`](#setcursorposx-y)
+	- [`getCursorBlink()`](#getcursorblink)
+	- [`setCursorBlink(blink)`](#setcursorblinkblink)
 	- [`getSize()`](#getsize)
 	- [`clear()`](#clear)
 	- [`clearLine()`](#clearline)
@@ -139,6 +144,9 @@ Same as `poll()` but halts execution until a key is pressed
 1. `number` - One of `keys.state`
 2. `number` - Bitfield maskable by `keys.modifiers`
 3. `string` - Key code or character
+
+## `flush()`
+Discard all unused keyboard buffer
 
 ## `getState(code)`
 Returns whether or not a specific key is currently pressed
@@ -278,7 +286,7 @@ Moves a path to another, can be used to rename files
 1. `source : string` - Path to be moved
 2. `target : string` - Destination of the new path
 
-## `move(source, target)`
+## `copy(source, target)`
 Copies a file to another, does not work on directories
 
 **Parameters**

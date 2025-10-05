@@ -55,6 +55,7 @@ end
 if peripheral.find("printer") then
     table.insert(menu_items, "Print")
 end]]
+table.insert(menu_items, "Run")
 table.insert(menu_items, "Exit")
 
 local status_ok, status_text
@@ -431,33 +432,29 @@ local tMenuFuncs = {
     Exit = function()
         bRunning = false
     end,
-    --[[Run = function()
-        local sTitle = fs.getName(sPath)
-        if sTitle:sub(-4) == ".lua" then
-            sTitle = sTitle:sub(1, -5)
-        end
-        local sTempPath = bReadOnly and ".temp." .. sTitle or fs.combine(fs.getDir(sPath), ".temp." .. sTitle)
+    Run = function()
+        local sTempPath = "~temp.lua"
         if fs.exists(sTempPath) then
             set_status("Error saving to " .. sTempPath, false)
             return
         end
         local ok = save(sTempPath, function(file)
-            local runHandler = [[return require("cc.internal.edit_runner")(%q, %q, %q)]]
-            --[[file:write(runHandler:format(sTitle, "@/" .. sPath, table.concat(tLines, "\n")))
+            for _, sLine in ipairs(tLines) do
+                file:writeLine(sLine)
+            end
         end)
         if ok then
-            local nTask = shell.openTab("/" .. sTempPath)
-            if nTask then
-                shell.switchTab(nTask)
-            else
-                set_status("Error starting Task", false)
-            end
+            local status, err = pcall(loadfile("~temp.lua"))
+            if not status then set_status(tostring(err)) end
             fs.delete(sTempPath)
         else
             set_status("Error saving to " .. sTempPath, false)
         end
+        keys.flush()
+        term.clear()
         redrawMenu()
-    end,]]
+        redrawText()
+    end,
 }
 
 local function setCursor(newX, newY)

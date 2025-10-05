@@ -24,6 +24,7 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#include <ldebug.h>
 
 #define PROMPT "lua> "
 #define STARTUP_FILE "main.lua"
@@ -46,13 +47,12 @@ bool should_interrupt = false;
 
 static void keyboard_interrupt() {
 	should_interrupt = true;
-	keyboard_set_interrupt_callback(NULL);
 }
 
 void lua_interrupt(lua_State *L, lua_Debug *ar) {
   if (should_interrupt) {
 		should_interrupt = false;
-		luaL_error(L, "interrupted");
+		luaG_runerror(L, "interrupted");
 	}
 }
 
@@ -88,6 +88,7 @@ int main() {
 		if (fs_exists(STARTUP_FILE)) {
 			keyboard_set_interrupt_callback(keyboard_interrupt);
 			luaL_dofile(L, STARTUP_FILE);
+			keyboard_set_interrupt_callback(NULL);
 		}
 	}
 
@@ -122,6 +123,7 @@ int main() {
 				printf("\x1b[m");
 			}
 		}
+		keyboard_set_interrupt_callback(NULL);
 	}
 
 	lua_close(L);
