@@ -46,6 +46,7 @@ bool should_interrupt = false;
 
 static void keyboard_interrupt() {
 	should_interrupt = true;
+	keyboard_set_interrupt_callback(NULL);
 }
 
 void lua_interrupt(lua_State *L, lua_Debug *ar) {
@@ -87,12 +88,12 @@ int main() {
 		if (fs_exists(STARTUP_FILE)) {
 			keyboard_set_interrupt_callback(keyboard_interrupt);
 			luaL_dofile(L, STARTUP_FILE);
-			keyboard_set_interrupt_callback(NULL);
 		}
 	}
 
 	while (1) {
 		char line[256];
+		keyboard_flush();
 		term_set_blinking_cursor(true);
 		int size = term_readline(PROMPT, line, 256, &term_history);
 		term_set_blinking_cursor(false);
@@ -121,7 +122,6 @@ int main() {
 				printf("\x1b[m");
 			}
 		}
-		keyboard_set_interrupt_callback(NULL);
 	}
 
 	lua_close(L);

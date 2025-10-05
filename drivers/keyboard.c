@@ -157,6 +157,10 @@ bool keyboard_key_available() {
 	return rx_head != rx_tail;
 }
 
+void keyboard_flush() {
+	rx_tail = rx_head;
+}
+
 unsigned char keyboard_getstate(unsigned char code) {
 	return keystates[code];
 }

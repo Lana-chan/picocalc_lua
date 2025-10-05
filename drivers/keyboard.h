@@ -182,5 +182,6 @@ char keyboard_getchar();
 void keyboard_set_key_available_callback(keyboard_callback_t callback);
 void keyboard_set_interrupt_callback(keyboard_callback_t callback);
 unsigned char keyboard_getstate(unsigned char code);
+void keyboard_flush();
 
 int get_battery();
