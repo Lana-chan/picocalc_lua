@@ -42,8 +42,17 @@ static void l_print (lua_State *L) {
 	}
 }
 
-static void lua_interrupt() {
-	luaL_error(L, "interrupted");
+bool should_interrupt = false;
+
+static void keyboard_interrupt() {
+	should_interrupt = true;
+}
+
+void lua_interrupt(lua_State *L, lua_Debug *ar) {
+  if (should_interrupt) {
+		should_interrupt = false;
+		luaL_error(L, "interrupted");
+	}
 }
 
 int main() {
@@ -60,6 +69,7 @@ int main() {
 	fs_init();
 
 	L = luaL_newstate();
+	lua_sethook(L, lua_interrupt, LUA_MASKCOUNT, 10);
 	luaL_openlibs(L);
 
 	modules_register_wrappers(L);
@@ -75,7 +85,7 @@ int main() {
 		printf("\x1b[92mSD card mounted!\x1b[m\n");
 
 		if (fs_exists(STARTUP_FILE)) {
-			keyboard_set_interrupt_callback(lua_interrupt);
+			keyboard_set_interrupt_callback(keyboard_interrupt);
 			luaL_dofile(L, STARTUP_FILE);
 			keyboard_set_interrupt_callback(NULL);
 		}
@@ -89,7 +99,7 @@ int main() {
 
 		lua_settop(L, 0);
 		//int num_results = 1;
-		keyboard_set_interrupt_callback(lua_interrupt);
+		keyboard_set_interrupt_callback(keyboard_interrupt);
 		const char *retline = lua_pushfstring(L, "return %s;", line);
 		status = luaL_loadbuffer(L, retline, strlen(retline), "=stdin");
 		if (status != LUA_OK) {

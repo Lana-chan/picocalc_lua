@@ -17,6 +17,8 @@ typedef struct {
 	int current;
 } history_t;
 
+#define CURSOR_BLINK_MS 300
+
 void stdio_picocalc_init();
 void stdio_picocalc_deinit();
 void term_clear();
