@@ -178,6 +178,7 @@ typedef void (*keyboard_callback_t)(void);
 int keyboard_init();
 input_event_t keyboard_poll();
 input_event_t keyboard_wait();
+input_event_t keyboard_wait_ex(bool nomod, bool onlypressed);
 char keyboard_getchar();
 void keyboard_set_key_available_callback(keyboard_callback_t callback);
 void keyboard_set_interrupt_callback(keyboard_callback_t callback);

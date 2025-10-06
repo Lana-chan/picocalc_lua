@@ -83,7 +83,9 @@ static int l_keyboard_isprint(lua_State* L) {
 }
 
 static int l_keyboard_wait(lua_State* L) {
-	input_event_t event = keyboard_wait();
+	bool nomod = luaL_opt(L, lua_toboolean, 1, false);
+	bool onlypressed = luaL_opt(L, lua_toboolean, 2, false);
+	input_event_t event = keyboard_wait_ex(nomod, onlypressed);
 	lua_pushinteger(L, event.state);
 	lua_pushinteger(L, event.modifiers);
 	lua_pushfstring(L, "%c", event.code);

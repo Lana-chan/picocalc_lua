@@ -13,7 +13,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`battery()`](#battery)
 - [`keys` - Keyboard handling functions](#keys---keyboard-handling-functions)
 	- [`poll()`](#poll)
-	- [`wait()`](#wait)
+	- [`wait([nomod], [onlypressed])`](#waitnomod-onlypressed)
 	- [`flush()`](#flush)
 	- [`getState(code)`](#getstatecode)
 	- [Constants](#constants)
@@ -139,8 +139,12 @@ Returns latest keyboard event without blocking
 2. `number` - Bitfield maskable by `keys.modifiers`
 3. `string` - Key code or character, 0 if no key was pressed
 
-## `wait()`
+## `wait([nomod], [onlypressed])`
 Same as `poll()` but halts execution until a key is pressed
+
+**Parameters**
+1. `nomod : boolean` - Ignore key events from modifier keys
+2. `onlypressed : boolean` - Ignore key events other than `keys.state.pressed`
 
 **Returns**
 1. `number` - One of `keys.state`

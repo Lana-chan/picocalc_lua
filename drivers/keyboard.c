@@ -172,20 +172,22 @@ input_event_t keyboard_poll() {
 	return event;
 }
 
-input_event_t keyboard_wait_ex(bool ch) {
+input_event_t keyboard_wait_ex(bool nomod, bool onlypressed) {
 	input_event_t event;
 	while(true) { 
 		while (!keyboard_key_available())	tight_loop_contents();
 
 		event = keyboard_poll();
-		if (event.code != KEY_NONE) {
-			if (!ch) { // only returns if it's not a modifier
-				break;
-			} else {
-				if (event.code != KEY_CONTROL ||
-					event.code != KEY_ALT ||
-					event.code != KEY_LSHIFT ||
-					event.code != KEY_RSHIFT) break;
+		if (!onlypressed || event.state == KEY_STATE_PRESSED) {
+			if (event.code != KEY_NONE) {
+				if (!nomod) { // only returns if it's not a modifier
+					break;
+				} else {
+					if (event.code != KEY_CONTROL ||
+						event.code != KEY_ALT ||
+						event.code != KEY_LSHIFT ||
+						event.code != KEY_RSHIFT) break;
+				}
 			}
 		}
 	}
@@ -193,11 +195,11 @@ input_event_t keyboard_wait_ex(bool ch) {
 }
 
 input_event_t keyboard_wait() {
-	return keyboard_wait_ex(false);
+	return keyboard_wait_ex(false, false);
 }
 
 char keyboard_getchar() {
-	return keyboard_wait_ex(true).code;
+	return keyboard_wait_ex(true, true).code;
 }
 
 int keyboard_init() {

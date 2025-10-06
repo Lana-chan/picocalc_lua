@@ -455,7 +455,7 @@ local tMenuFuncs = {
             term.setCursorPos(1, h)
             term.write("Press any key...")
             keys.flush()
-            keys.wait()
+            keys.wait(false, true)
             --fs.delete(sTempPath)
         else
             set_status("Error saving to " .. sTempPath, false)

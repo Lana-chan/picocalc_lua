@@ -268,7 +268,7 @@ int luaopen_color(lua_State *L) {
 	lua_pushintegerconstant(L, "brown", RGB(127, 102, 76));
 	lua_pushintegerconstant(L, "green", RGB(87, 166, 78));
 	lua_pushintegerconstant(L, "red", RGB(204, 76, 76));
-	lua_pushintegerconstant(L, "black", RGB(17, 17, 1));
+	lua_pushintegerconstant(L, "black", RGB(17, 17, 17));
 	
 	return 1;
 }
