@@ -66,6 +66,8 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`polygon(points, color)`](#polygonpoints-color)
 	- [`polygonFill(points, color)`](#polygonfillpoints-color)
 	- [`triangle(c1, x1, y1, c2, x2, y2, c3, x3, y3)`](#trianglec1-x1-y1-c2-x2-y2-c3-x3-y3)
+	- [`enableBuffer(enable)`](#enablebufferenable)
+	- [`blitBuffer()`](#blitbuffer)
 - [`colors` - Color functions and constants](#colors---color-functions-and-constants)
 	- [`fromRGB(R, G, B)`](#fromrgbr-g-b)
 	- [`toRGB(color)`](#torgbcolor)
@@ -541,6 +543,15 @@ Draw a triangle with each vertex shaded by a different color
 1. `c3 : number` - The [`color`](#colors---color-functions-and-constants) to shade the third vertex
 2. `x3 : number` - The horizontal position of the third vertex in pixels
 3. `y3 : number` - The vertical position of the third vertex in pixels
+
+## `enableBuffer(enable)`
+Controls whether or not to enable the framebuffer. While the framebuffer is enabled, no drawing functions will be reflected on the screen until the framebuffer is blitted, or the framebuffer is disabled
+
+**Parameters**
+1. `enable : boolean` - Whether or not to enable the framebuffer
+
+## `blitBuffer()`
+Blit the contents of the framebuffer to the screen
 
 
 # `colors` - Color functions and constants

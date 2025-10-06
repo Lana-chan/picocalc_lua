@@ -132,17 +132,26 @@ static void lcd_direct_clear() {
 }
 
 static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
+	int remain;
 	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
-		for (uint32_t ix = x; ix < (x + width); ix++) {
-			psram_write16(&psram_spi, (iy + ix)<<1, *pixels++);
+		remain = width;
+		for (uint32_t ix = x; ix < (x + width); ix+=8) {
+			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)pixels, (remain < 8 ? remain<<1 : 16));
+			pixels += (remain < 8 ? remain : 8);
+			remain -= 8;
 		}
 	}
 }
 
 static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
+	u16 buf[8];
+	int remain;
+	for (int i = 0; i < 8; i++) buf[i] = color;
 	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
-		for (uint32_t ix = x; ix < (x + width); ix++) {
-			psram_write16(&psram_spi, (iy + ix)<<1, color);
+		remain = width;
+		for (uint32_t ix = x; ix < (x + width); ix+=8) {
+			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)buf, (remain < 8 ? remain<<1 : 16));
+			remain -= 8;
 		}
 	}
 }
@@ -163,8 +172,8 @@ void lcd_buffer_blit() {
 	gpio_put(LCD_DC, 1);
 
 	for (int y = 0; y < HEIGHT * WIDTH; y += WIDTH) {
-		for (int x = 0; x < WIDTH; x++) {
-			buf[x] = psram_read16(&psram_spi, (x + y)<<1);
+		for (int x = 0; x < WIDTH; x+=8) {
+			psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(buf + x), 16);
 		}
 		spi_write16_blocking(spi1, buf, WIDTH);
 	}

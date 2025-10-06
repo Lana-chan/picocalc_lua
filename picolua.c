@@ -95,6 +95,7 @@ int main() {
 	while (1) {
 		char line[256];
 		keyboard_flush();
+		lcd_fifo_buffer_enable(false);
 		term_set_blinking_cursor(true);
 		int size = term_readline(PROMPT, line, 256, &term_history);
 		term_set_blinking_cursor(false);

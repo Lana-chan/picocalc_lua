@@ -434,23 +434,32 @@ local tMenuFuncs = {
     end,
     Run = function()
         local sTempPath = "~temp.lua"
-        if fs.exists(sTempPath) then
+        --[[if fs.exists(sTempPath) then
             set_status("Error saving to " .. sTempPath, false)
             return
-        end
+        end]]
         local ok = save(sTempPath, function(file)
             for _, sLine in ipairs(tLines) do
                 file:writeLine(sLine)
             end
         end)
         if ok then
-            local status, err = pcall(loadfile("~temp.lua"))
-            if not status then set_status(tostring(err)) end
-            fs.delete(sTempPath)
+            term.clear()
+            keys.flush()
+            collectgarbage()
+            print("Free memory: "..sys.freeMemory())
+            local status, err = pcall(loadfile(sTempPath))
+            collectgarbage()
+            draw.enableBuffer(false)
+            if not status then print(tostring(err)) end
+            term.setCursorPos(1, h)
+            term.write("Press any key...")
+            keys.flush()
+            keys.wait()
+            --fs.delete(sTempPath)
         else
             set_status("Error saving to " .. sTempPath, false)
         end
-        keys.flush()
         term.clear()
         redrawMenu()
         redrawText()
@@ -580,8 +589,8 @@ while bRunning do
                 else
                     -- Indent line
                     local sLine = tLines[y]
-                    tLines[y] = string.sub(sLine, 1, x - 1) .. "    " .. string.sub(sLine, x)
-                    setCursor(x + 4, y)
+                    tLines[y] = string.sub(sLine, 1, x - 1) .. "\t" .. string.sub(sLine, x)
+                    setCursor(x + 1, y)
                 end
 
             elseif key == keys.pageUp then
