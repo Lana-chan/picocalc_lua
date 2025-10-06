@@ -24,6 +24,17 @@ static int l_draw_clear(lua_State* L) {
 	return 0;
 }
 
+static int l_draw_buffer_enable(lua_State* L) {
+	bool enable = lua_toboolean(L, 1);
+	lcd_fifo_buffer_enable(enable);
+	return 0;
+}
+
+static int l_draw_buffer_blit(lua_State* L) {
+	lcd_fifo_buffer_blit();
+	return 0;
+}
+
 static int l_draw_color_from_rgb(lua_State* L) {
 	u8 r = luaL_checkinteger(L, 1);
 	u8 g = luaL_checkinteger(L, 2);
@@ -218,6 +229,8 @@ int luaopen_draw(lua_State *L) {
 		{"polygon", l_draw_polygon},
 		{"polygonFill", l_draw_fill_polygon},
 		{"triangle", l_draw_triangle_shaded},
+		{"enableBuffer", l_draw_buffer_enable},
+		{"blitBuffer", l_draw_buffer_blit},
 		{NULL, NULL}
 	};
 	

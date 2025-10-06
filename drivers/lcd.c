@@ -8,6 +8,7 @@
 
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
+#include "psram_spi.h"
 
 #include "lcd.h"
 #include "font.h"
@@ -20,13 +21,21 @@
 #define LCD_DC  14
 #define LCD_RST 15
 
-#define FIFO_LCD        0
-#define FIFO_LCD_DRAW   FIFO_LCD + 1
-#define FIFO_LCD_FILL   FIFO_LCD + 2
-#define FIFO_LCD_CLEAR  FIFO_LCD + 3
-#define FIFO_LCD_CHAR   FIFO_LCD + 4
-#define FIFO_LCD_TEXT   FIFO_LCD + 5
-#define FIFO_LCD_SCROLL FIFO_LCD + 6
+#define FIFO_LCD         0
+#define FIFO_LCD_DRAW    FIFO_LCD + 1
+#define FIFO_LCD_FILL    FIFO_LCD + 2
+#define FIFO_LCD_CLEAR   FIFO_LCD + 3
+#define FIFO_LCD_BUFEN   FIFO_LCD + 4
+#define FIFO_LCD_BUFBLIT FIFO_LCD + 5
+#define FIFO_LCD_CHAR    FIFO_LCD + 6
+#define FIFO_LCD_TEXT    FIFO_LCD + 7
+#define FIFO_LCD_SCROLL  FIFO_LCD + 8
+
+void(*lcd_draw_ptr) (u16*,int,int,int,int);
+void(*lcd_fill_ptr) (u16,int,int,int,int);
+void(*lcd_point_ptr) (u16,int,int);
+void(*lcd_clear_ptr) (void);
+psram_spi_inst_t psram_spi;
 
 static int lcd_write_spi(void *buf, size_t len) {
 	return spi_write_blocking(spi1, buf, len);
@@ -76,7 +85,7 @@ static int lcd_write_data(u8* buf, int len) {
 	return lcd_write_spi(buf, len);
 }
 
-void lcd_draw(u16* pixels, int x, int y, int width, int height) {
+static void lcd_direct_draw(u16* pixels, int x, int y, int width, int height) {
 	y %= MEM_HEIGHT;
 	lcd_set_region(x, y, x + width - 1, y + height - 1, REGION_WRITE);
 
@@ -87,7 +96,7 @@ void lcd_draw(u16* pixels, int x, int y, int width, int height) {
 	gpio_put(LCD_CS, 1);
 }
 
-void lcd_fill(u16 color, int x, int y, int width, int height) {
+static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
 	y %= MEM_HEIGHT;
 
 	x = (x < 0 ? 0 : (x >= WIDTH ? WIDTH : x));
@@ -99,9 +108,9 @@ void lcd_fill(u16 color, int x, int y, int width, int height) {
 	u16 color2 = (color >> 8) | (color << 8);
 	spi_set_format(spi1, 16, 0, 0, SPI_MSB_FIRST);
 
-	u16 buf[256];
+	u16 buf[WIDTH];
 	int remaining = width * height;
-	int chunk_size = remaining < 256 ? remaining : 256;
+	int chunk_size = remaining < WIDTH ? remaining : WIDTH;
 	for (int i = 0; i < chunk_size; i++) buf[i] = color;
 
 	while (remaining > chunk_size) {
@@ -114,8 +123,84 @@ void lcd_fill(u16 color, int x, int y, int width, int height) {
 	gpio_put(LCD_CS, 1);
 }
 
-int lcd_clear() {
+static void lcd_direct_point(u16 color, int x, int y) {
+	lcd_fill(color, x, y, 1, 1);
+}
+
+static void lcd_direct_clear() {
 	lcd_fill(0, 0, 0, WIDTH, MEM_HEIGHT);
+}
+
+static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
+	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
+		for (uint32_t ix = x; ix < (x + width); ix++) {
+			psram_write16(&psram_spi, (iy + ix)<<1, *pixels++);
+		}
+	}
+}
+
+static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
+	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
+		for (uint32_t ix = x; ix < (x + width); ix++) {
+			psram_write16(&psram_spi, (iy + ix)<<1, color);
+		}
+	}
+}
+
+static void lcd_buffer_point(u16 color, int x, int y) {
+	psram_write16(&psram_spi, (x + y * WIDTH)<<1, color);
+}
+
+static void lcd_buffer_clear() {
+	lcd_buffer_fill(0, 0, 0, WIDTH, HEIGHT);
+}
+
+void lcd_buffer_blit() {
+	lcd_set_region(0, 0, 319, 319, REGION_WRITE);
+
+	u16 buf[WIDTH];
+	spi_set_format(spi1, 16, 0, 0, SPI_MSB_FIRST);
+	gpio_put(LCD_DC, 1);
+
+	for (int y = 0; y < HEIGHT * WIDTH; y += WIDTH) {
+		for (int x = 0; x < WIDTH; x++) {
+			buf[x] = psram_read16(&psram_spi, (x + y)<<1);
+		}
+		spi_write16_blocking(spi1, buf, WIDTH);
+	}
+
+	spi_set_format(spi1, 8, 0, 0, SPI_MSB_FIRST);
+	gpio_put(LCD_CS, 1);
+}
+
+void lcd_draw(u16* pixels, int x, int y, int width, int height) {
+	lcd_draw_ptr(pixels, x, y, width, height);
+}
+
+void lcd_fill(u16 color, int x, int y, int width, int height) {
+	lcd_fill_ptr(color, x, y, width, height);
+}
+
+void lcd_point(u16 color, int x, int y) {
+	lcd_point_ptr(color, x, y);
+}
+
+void lcd_clear() {
+	lcd_clear_ptr();
+}
+
+void lcd_buffer_enable(bool enable) {
+	if (enable) {
+		lcd_draw_ptr = &lcd_buffer_draw;
+		lcd_fill_ptr = &lcd_buffer_fill;
+		lcd_point_ptr = &lcd_buffer_point;
+		lcd_clear_ptr = &lcd_buffer_clear;
+	} else {
+		lcd_draw_ptr = &lcd_direct_draw;
+		lcd_fill_ptr = &lcd_direct_fill;
+		lcd_point_ptr = &lcd_direct_point;
+		lcd_clear_ptr = &lcd_direct_clear;
+	}
 }
 
 void lcd_scroll(int lines) {
@@ -321,6 +406,9 @@ void lcd_init() {
 	//sleep_ms(120);
 	gpio_put(LCD_CS, 1);
 
+	psram_spi = psram_spi_init(pio0, -1);
+	lcd_buffer_enable(false);
+
 	lcd_clear();
 	lcd_on();
 }
@@ -354,7 +442,14 @@ int lcd_fifo_receiver(uint32_t message) {
 	char* text;
 
 	switch (message) {
-		//case FIFO_DRAW:
+		case FIFO_LCD_DRAW:
+			fg = multicore_fifo_pop_blocking_inline();
+			x = multicore_fifo_pop_blocking_inline();
+			y = multicore_fifo_pop_blocking_inline();
+			width = multicore_fifo_pop_blocking_inline();
+			height = multicore_fifo_pop_blocking_inline();
+			lcd_draw((u16*)fg, (int)x, (int)y, (int)width, (int)height);
+			return 1;
 
 		case FIFO_LCD_FILL:
 			fg = multicore_fifo_pop_blocking_inline();
@@ -367,6 +462,15 @@ int lcd_fifo_receiver(uint32_t message) {
 
 		case FIFO_LCD_CLEAR:
 			lcd_clear();
+			return 1;
+
+		case FIFO_LCD_BUFEN:
+			x = multicore_fifo_pop_blocking_inline();
+			lcd_buffer_enable(x);
+			return 1;
+
+		case FIFO_LCD_BUFBLIT:
+			lcd_buffer_blit();
 			return 1;
 
 		case FIFO_LCD_CHAR:
@@ -398,7 +502,14 @@ int lcd_fifo_receiver(uint32_t message) {
 	}
 }
 
-//void lcd_fifo_draw(u16* pixels, int x, int y, int width, int height);
+void lcd_fifo_draw(u16* pixels, int x, int y, int width, int height) {
+	multicore_fifo_push_blocking_inline(FIFO_LCD_DRAW);
+	multicore_fifo_push_blocking_inline((uint32_t)pixels);
+	multicore_fifo_push_blocking_inline(x);
+	multicore_fifo_push_blocking_inline(y);
+	multicore_fifo_push_blocking_inline(width);
+	multicore_fifo_push_blocking_inline(height);
+}
 
 void lcd_fifo_fill(u16 color, int x, int y, int width, int height) {
 	multicore_fifo_push_blocking_inline(FIFO_LCD_FILL);
@@ -409,8 +520,17 @@ void lcd_fifo_fill(u16 color, int x, int y, int width, int height) {
 	multicore_fifo_push_blocking_inline(height);
 }
 
-int lcd_fifo_clear() {
+void lcd_fifo_clear() {
 	multicore_fifo_push_blocking_inline(FIFO_LCD_CLEAR);
+}
+
+void lcd_fifo_buffer_enable(bool enable) {
+	multicore_fifo_push_blocking_inline(FIFO_LCD_BUFEN);
+	multicore_fifo_push_blocking_inline(enable);
+}
+
+void lcd_fifo_buffer_blit() {
+	multicore_fifo_push_blocking_inline(FIFO_LCD_BUFBLIT);
 }
 
 void lcd_fifo_draw_char(int x, int y, u16 fg, u16 bg, char c) {

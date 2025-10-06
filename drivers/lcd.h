@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 #define WIDTH 320
 #define HEIGHT 320
@@ -15,9 +16,11 @@
 
 int lcd_fifo_receiver(uint32_t message);
 
-//void lcd_fifo_draw(u16* pixels, int x, int y, int width, int height);
+void lcd_fifo_draw(u16* pixels, int x, int y, int width, int height);
 void lcd_fifo_fill(u16 color, int x, int y, int width, int height);
-int lcd_fifo_clear();
+void lcd_fifo_clear();
+void lcd_fifo_buffer_enable(bool enable);
+void lcd_fifo_buffer_blit();
 void lcd_fifo_draw_char(int x, int y, u16 fg, u16 bg, char c);
 void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text);
 void lcd_fifo_printf(int x, int y, u16 fg, u16 bg, const char* format, ...);
@@ -25,7 +28,8 @@ void lcd_fifo_scroll(int lines);
 
 void lcd_draw(u16* pixels, int x, int y, int width, int height);
 void lcd_fill(u16 color, int x, int y, int width, int height);
-int lcd_clear();
+void lcd_point(u16 color, int x, int y);
+void lcd_clear();
 void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c);
 void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text);
 void lcd_printf(int x, int y, u16 fg, u16 bg, const char* format, ...);

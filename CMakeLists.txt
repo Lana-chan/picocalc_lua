@@ -19,6 +19,7 @@ add_subdirectory(lua-5.4.8)
 add_subdirectory(drivers)
 add_subdirectory(pico_fatfs)
 add_subdirectory(modules)
+add_subdirectory(rp2040-psram)
 
 add_executable(picolua
 	picolua.c
@@ -47,7 +48,17 @@ target_link_libraries(picolua
 	drivers
 	pico_fatfs
 	modules
-	)
+)
+
+target_compile_definitions(picolua PRIVATE
+	PSRAM_MUTEX=1
+	#PSRAM_SPINLOCK=0
+	PSRAM_ASYNC=0
+	PSRAM_PIN_CS=20
+	PSRAM_PIN_SCK=21
+	PSRAM_PIN_MOSI=2
+	PSRAM_PIN_MISO=3
+)
 
 pico_add_extra_outputs(picolua)
 

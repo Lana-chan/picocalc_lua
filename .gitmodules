@@ -1,3 +1,6 @@
 [submodule "pico_fatfs"]
 	path = pico_fatfs
 	url = https://github.com/elehobica/pico_fatfs.git
+[submodule "rp2040-psram"]
+	path = rp2040-psram
+	url = https://github.com/polpo/rp2040-psram

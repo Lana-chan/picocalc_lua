@@ -76,7 +76,7 @@ void draw_clear() {
 }
 
 void draw_point(i32 x, i32 y, Color color) {
-	if (x >= 0 && x < WIDTH && y >= 0 && y < MEM_HEIGHT) lcd_fill(color, x, y, 1, 1);
+	if (x >= 0 && x < WIDTH && y >= 0 && y < MEM_HEIGHT) lcd_point(color, x, y);
 }
 
 void draw_fill_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
