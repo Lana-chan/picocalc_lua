@@ -15,11 +15,11 @@ include(pico_sdk_import.cmake)
 project(picolua)
 pico_sdk_init()
 
-add_subdirectory(lua-5.4.8)
+add_subdirectory(submodules/lua-5.4.8)
+add_subdirectory(submodules/pico_fatfs)
+add_subdirectory(submodules/rp2040-psram)
 add_subdirectory(drivers)
-add_subdirectory(pico_fatfs)
-add_subdirectory(modules)
-add_subdirectory(rp2040-psram)
+add_subdirectory(picolua-api)
 
 add_executable(picolua
 	picolua.c
@@ -47,10 +47,11 @@ target_link_libraries(picolua
 	lua 
 	drivers
 	pico_fatfs
-	modules
+	picolua-api
 )
 
 target_compile_definitions(picolua PRIVATE
+	# rp2040-psram
 	PSRAM_MUTEX=1
 	#PSRAM_SPINLOCK=0
 	PSRAM_ASYNC=0

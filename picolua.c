@@ -17,9 +17,9 @@
 #include "drivers/term.h"
 #include "drivers/fs.h"
 #include "drivers/multicore.h"
-#include "modules/sys.h"
+#include "picolua-api/sys.h"
 
-#include "modules/modules.h"
+#include "picolua-api/modules.h"
 
 #include <lua.h>
 #include <lualib.h>

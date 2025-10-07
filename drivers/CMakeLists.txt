@@ -7,7 +7,7 @@ set(CMAKE_C_STANDARD 11)
 project(drivers
 	VERSION 0.0.1
 	DESCRIPTION "picocalc drivers for lcd, keyboard"
-	)
+)
 
 add_library(drivers INTERFACE)
 
@@ -18,7 +18,7 @@ target_sources(drivers INTERFACE
 	draw.c
 	fs.c
 	multicore.c
-	)
+)
 
 target_link_libraries(drivers INTERFACE
 	pico_stdlib
@@ -27,4 +27,6 @@ target_link_libraries(drivers INTERFACE
 	rp2040-psram
 )
 
-target_include_directories(drivers INTERFACE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(drivers INTERFACE
+	${CMAKE_CURRENT_LIST_DIR}
+)
