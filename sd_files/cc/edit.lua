@@ -250,16 +250,25 @@ local function redrawLines(line, endLine)
         end
 
         while token do
-            -- Print out that token
-            local new_color = token_colors[token]
-            if new_color ~= color then
-                term.setTextColor(new_color)
-                color = new_color
+            -- start at scrollX
+            if finish >= scrollX+1 then
+                -- Print out that token
+                local new_color = token_colors[token]
+                if new_color ~= color then
+                    term.setTextColor(new_color)
+                    color = new_color
+                end
+                -- limit printed line to screen
+                if pos < scrollX+1 then pos = scrollX+1 end
+                local cap = finish < scrollX+w and finish or scrollX+w
+                term.write(contents:sub(pos, cap))
             end
-            term.write(contents:sub(pos, finish))
 
             pos = finish + 1
 
+            -- end if we're past the screen width
+            if pos > scrollX+w then break end
+            
             -- If we have a continuation, then we've reached the end of the line. Abort.
             if continuation then break end
 
@@ -448,8 +457,9 @@ local tMenuFuncs = {
             keys.flush()
             collectgarbage()
             print("Free memory: "..sys.freeMemory())
-            local status, err = pcall(loadfile(sTempPath))
-            collectgarbage()
+            local f, err = loadfile(sTempPath)
+            if not f then set_status(tostring(err)) return end
+            local status, err = pcall(f)
             draw.enableBuffer(false)
             if not status then print(tostring(err)) end
             term.setCursorPos(1, h)
@@ -460,6 +470,7 @@ local tMenuFuncs = {
         else
             set_status("Error saving to " .. sTempPath, false)
         end
+        collectgarbage()
         term.clear()
         redrawMenu()
         redrawText()
