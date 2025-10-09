@@ -165,10 +165,10 @@ unsigned char keyboard_getstate(unsigned char code) {
 	return keystates[code];
 }
 
-input_event_t keyboard_poll() {
+input_event_t keyboard_poll(bool peek) {
 	if (!keyboard_key_available()) return (input_event_t){0, 0, KEY_NONE};
 	input_event_t event = rx_buffer[rx_tail];
-	rx_tail = (rx_tail + 1) & (KBD_BUFFER_SIZE - 1);
+	if (!peek) rx_tail = (rx_tail + 1) & (KBD_BUFFER_SIZE - 1);
 	return event;
 }
 
@@ -177,7 +177,7 @@ input_event_t keyboard_wait_ex(bool nomod, bool onlypressed) {
 	while(true) { 
 		while (!keyboard_key_available())	tight_loop_contents();
 
-		event = keyboard_poll();
+		event = keyboard_poll(false);
 		if (!onlypressed || event.state == KEY_STATE_PRESSED) {
 			if (event.code != KEY_NONE) {
 				if (!nomod) { // only returns if it's not a modifier

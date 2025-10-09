@@ -9,13 +9,18 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`bootsel()`](#bootsel)
 	- [`setOutput(pin, dir)`](#setoutputpin-dir)
 	- [`getPin(pin)`](#getpinpin)
-	- [`setPin(pin, stae)`](#setpinpin-stae)
+	- [`setPin(pin, state)`](#setpinpin-state)
 	- [`battery()`](#battery)
+	- [`getClock()`](#getclock)
+	- [`setClock(speed)`](#setclockspeed)
 - [`keys` - Keyboard handling functions](#keys---keyboard-handling-functions)
 	- [`poll()`](#poll)
+	- [`peek()`](#peek)
 	- [`wait([nomod], [onlypressed])`](#waitnomod-onlypressed)
 	- [`flush()`](#flush)
 	- [`getState(code)`](#getstatecode)
+	- [`isAvailable([nomod], [onlypressed])`](#isavailablenomod-onlypressed)
+	- [`isPrintable(char)`](#isprintablechar)
 	- [Constants](#constants)
 		- [`states`](#states)
 		- [`modifiers`](#modifiers)
@@ -115,7 +120,7 @@ Gets the current state of an input pin
 **Returns**
 1. `boolean` - False for low, true for high
 
-## `setPin(pin, stae)`
+## `setPin(pin, state)`
 Sets the output of a pin
 
 **Parameters**
@@ -128,11 +133,34 @@ Gets the current state of charge of the battery
 **Returns**
 1. `number` - The battery state in 0-100 percentage
 
+## `getClock()`
+Gets the current CPU clock speed
+
+**Returns**
+1. `number` - Current clock speed in KHz
+
+## `setClock(speed)`
+Sets the CPU clock speed
+
+**Parameters**
+1. `speed : number` - The desired clock speed in KHz
+
+**Returns**
+1. `boolean` - Whether or not the CPU clock was able to be set
+
 
 # `keys` - Keyboard handling functions
 
 ## `poll()`
-Returns latest keyboard event without blocking
+Returns latest keyboard event without blocking, clearing it from the queue
+
+**Returns**
+1. `number` - One of `keys.states`
+2. `number` - Bitfield maskable by `keys.modifiers`
+3. `string` - Key code or character, 0 if no key was pressed
+
+## `peek()`
+Same as `poll()` but does not clear it from the queue
 
 **Returns**
 1. `number` - One of `keys.states`
@@ -143,8 +171,8 @@ Returns latest keyboard event without blocking
 Same as `poll()` but halts execution until a key is pressed
 
 **Parameters**
-1. `nomod : boolean` - Ignore key events from modifier keys
-2. `onlypressed : boolean` - Ignore key events other than `keys.state.pressed`
+1. `nomod : boolean` - Ignore key events from modifier keys, default false
+2. `onlypressed : boolean` - Ignore key events other than `keys.state.pressed`, default true
 
 **Returns**
 1. `number` - One of `keys.state`
@@ -155,13 +183,30 @@ Same as `poll()` but halts execution until a key is pressed
 Discard all unused keyboard buffer
 
 ## `getState(code)`
-Returns whether or not a specific key is currently pressed
+Checks if a specific key is currently pressed
 
 **Parameters**
 1. `code : string` - One of `keys` constants, or key code
 
 **Returns**
 1. `boolean` - True if the key is currently held down, false otherwise
+
+## `isAvailable([nomod], [onlypressed])`
+Checks if there are key events available to be polled without blocking. Will swallow events to be ignored if specified
+
+**Parameters**
+1. `nomod : boolean` - Ignore key events from modifier keys, default false
+2. `onlypressed : boolean` - Ignore key events other than `keys.state.pressed`, default true
+
+**Returns**
+1. `boolean` - Whether or not there are key events available
+
+## `isPrintable(char)`
+Checks if a character is an ASCII printable character
+
+**Returns**
+1. `boolean` - Whether or not the character is printable
+
 
 ## Constants
 

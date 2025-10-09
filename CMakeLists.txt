@@ -39,6 +39,7 @@ target_link_libraries(picolua
 	hardware_i2c
 	hardware_spi
 	hardware_dma
+	hardware_clocks
 	#hardware_flash
 	#hardware_adc
 	#hardware_exception

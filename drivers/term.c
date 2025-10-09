@@ -289,7 +289,7 @@ static void stdio_picocalc_out_chars(const char *buf, int length) {
 }
 
 static int stdio_picocalc_in_chars(char *buf, int length) {
-	input_event_t event = keyboard_poll();
+	input_event_t event = keyboard_poll(false);
 	if (event.state == KEY_STATE_PRESSED && event.code > 0) {
 		if (event.modifiers & MOD_CONTROL && event.code >= 'a' && event.code < 'z') {
 			*buf = event.code - 'a' + 1;

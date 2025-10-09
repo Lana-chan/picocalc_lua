@@ -3,6 +3,7 @@
 #include <ctype.h>
 
 #include "hardware/watchdog.h"
+#include "hardware/clocks.h"
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
 
@@ -13,6 +14,8 @@
 #include "modules.h"
 #include "../drivers/keyboard.h"
 
+static uint32_t current_clk = 125000;
+
 uint32_t get_total_memory() {
 	extern char __StackLimit, __bss_end__;
 	return &__StackLimit  - &__bss_end__;
@@ -21,6 +24,18 @@ uint32_t get_total_memory() {
 uint32_t get_free_memory() {
 	struct mallinfo m = mallinfo();
 	return get_total_memory() - m.uordblks;
+}
+
+uint32_t get_system_clk() {
+	return current_clk;
+}
+
+bool set_system_clk(uint32_t clk) {
+	if (set_sys_clock_khz(clk, true)) {
+		current_clk = clk;
+		return true;
+	}
+	return false;
 }
 
 static int l_get_total_memory(lua_State* L) {
@@ -69,7 +84,15 @@ static int l_get_pin(lua_State *L) {
 }
 
 static int l_keyboard_poll(lua_State* L) {
-	input_event_t event = keyboard_poll();
+	input_event_t event = keyboard_poll(false);
+	lua_pushinteger(L, event.state);
+	lua_pushinteger(L, event.modifiers);
+	lua_pushfstring(L, "%c", event.code);
+	return 3;
+}
+
+static int l_keyboard_peek(lua_State* L) {
+	input_event_t event = keyboard_poll(true);
 	lua_pushinteger(L, event.state);
 	lua_pushinteger(L, event.modifiers);
 	lua_pushfstring(L, "%c", event.code);
@@ -84,7 +107,7 @@ static int l_keyboard_isprint(lua_State* L) {
 
 static int l_keyboard_wait(lua_State* L) {
 	bool nomod = luaL_opt(L, lua_toboolean, 1, false);
-	bool onlypressed = luaL_opt(L, lua_toboolean, 2, false);
+	bool onlypressed = luaL_opt(L, lua_toboolean, 2, true);
 	input_event_t event = keyboard_wait_ex(nomod, onlypressed);
 	lua_pushinteger(L, event.state);
 	lua_pushinteger(L, event.modifiers);
@@ -103,9 +126,43 @@ static int l_keyboard_flush(lua_State* L) {
 	return 0;
 }
 
+static int l_keyboard_available(lua_State* L) {
+	bool nomod = luaL_opt(L, lua_toboolean, 1, false);
+	bool onlypressed = luaL_opt(L, lua_toboolean, 2, true);
+	bool available = keyboard_key_available();
+	input_event_t peek = keyboard_poll(true);
+	if (available && nomod) {
+		if (peek.code == KEY_CONTROL ||
+				peek.code == KEY_ALT ||
+				peek.code == KEY_LSHIFT ||
+				peek.code == KEY_RSHIFT) {
+			available = false;
+			keyboard_poll(false);
+		}
+	} else if (available && onlypressed) {
+		if (peek.state != KEY_STATE_PRESSED) {
+			available = false;
+			keyboard_poll(false);
+		}
+	}
+	lua_pushboolean(L, available);
+	return 1;
+}
+
 static int l_get_battery(lua_State* L) {
 	int battery = get_battery();
 	lua_pushinteger(L, battery);
+	return 1;
+}
+
+static int l_get_clock(lua_State* L) {
+	lua_pushinteger(L, current_clk);
+	return 1;
+}
+
+static int l_set_clock(lua_State* L) {
+	uint32_t clk = luaL_checkinteger(L, 1);
+	lua_pushboolean(L, set_system_clk(clk));
 	return 1;
 }
 
@@ -116,9 +173,11 @@ int luaopen_sys(lua_State *L) {
 		{"reset", l_reset},
 		{"bootsel", l_bootsel},
 		{"setOutput", l_set_output},
-		{"setPin", l_set_pin},
 		{"getPin", l_get_pin},
+		{"setPin", l_set_pin},
 		{"battery", l_get_battery},
+		{"getClock", l_get_clock},
+		{"setClock", l_set_clock},
 		{NULL, NULL}
 	};
 	
@@ -131,8 +190,10 @@ int luaopen_keys(lua_State *L) {
 	static const luaL_Reg keyslib_f [] = {
 		{"wait", l_keyboard_wait},
 		{"poll", l_keyboard_poll},
+		{"peek", l_keyboard_peek},
 		{"flush", l_keyboard_flush},
 		{"getState", l_keyboard_state},
+		{"isAvailable", l_keyboard_available},
 		{"isPrintable", l_keyboard_isprint},
 		{NULL, NULL}
 	};
