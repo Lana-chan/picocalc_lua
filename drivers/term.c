@@ -128,7 +128,9 @@ bool term_get_blinking_cursor() {
 
 void term_set_blinking_cursor(bool enabled) {
 	if (enabled && !ansi.cursor_enabled) {
+		ansi.cursor_manual = true;
 		ansi.cursor_enabled = true;
+		draw_cursor();
 		add_repeating_timer_ms(CURSOR_BLINK_MS, on_cursor_timer, NULL, &cursor_timer);
 	} else if (!enabled && ansi.cursor_enabled) {
 		erase_cursor();

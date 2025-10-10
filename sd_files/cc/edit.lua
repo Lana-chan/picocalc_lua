@@ -225,6 +225,7 @@ local function shallowEqual(x, y)
 end
 
 local function redrawLines(line, endLine)
+    term.setCursorBlink(false)
     if not endLine then endLine = line end
 
     local color = term.getTextColor()
@@ -308,16 +309,11 @@ local function redrawText()
 end
 
 local function redrawMenu()
+    term.setCursorBlink(false)
+
     -- Clear line
     term.setCursorPos(1, h)
     term.clearLine()
-
-    -- Draw line numbers
-    term.setCursorPos(w - #("Ln " .. y) + 1, h)
-    term.setTextColor(highlightColor)
-    term.write("Ln ")
-    term.setTextColor(textColor)
-    term.write(y)
 
     term.setCursorPos(1, h)
     if current_menu then
@@ -328,6 +324,13 @@ local function redrawMenu()
         term.setTextColor(status_ok and highlightColor or errorColor)
         term.write(status_text)
         term.setTextColor(textColor)
+        
+        -- Draw line numbers
+        term.setCursorPos(w - #("Ln " .. y) + 1, h)
+        term.setTextColor(highlightColor)
+        term.write("Ln ")
+        term.setTextColor(textColor)
+        term.write(y)
     end
 
     -- Reset cursor
@@ -453,19 +456,23 @@ local tMenuFuncs = {
             end
         end)
         if ok then
-            term.clear()
-            keys.flush()
             collectgarbage()
-            print("Free memory: "..sys.freeMemory())
             local f, err = loadfile(sTempPath)
-            if not f then set_status(tostring(err)) return end
-            local status, err = pcall(f)
-            draw.enableBuffer(false)
-            if not status then print(tostring(err)) end
-            term.setCursorPos(1, h)
-            term.write("Press any key...")
-            keys.flush()
-            keys.wait(false, true)
+            if not f then
+                set_status(tostring(err))
+            else
+                term.clear()
+                keys.flush()
+                print("Free memory: "..sys.freeMemory())
+                set_status("Press Ctrl to access menu")
+                local status, err = pcall(f)
+                draw.enableBuffer(false)
+                if not status then print(tostring(err)) end
+                term.setCursorPos(1, h)
+                term.write("Press any key...")
+                keys.flush()
+                keys.wait(false, true)
+            end
             --fs.delete(sTempPath)
         else
             set_status("Error saving to " .. sTempPath, false)
@@ -512,6 +519,7 @@ local function setCursor(newX, newY)
     else
         redrawLines(y)
     end
+    term.setCursorBlink(not current_menu);
 
     redrawMenu()
 end
@@ -522,7 +530,6 @@ load(sPath)
 term.setBackgroundColor(bgColor)
 term.clear()
 term.setCursorPos(x, y)
-term.setCursorBlink(true)
 
 recomplete()
 redrawText()
@@ -553,6 +560,7 @@ end
 
 -- Handle input
 while bRunning do
+    term.setCursorBlink(not current_menu)
     state, modifiers, key = keys.wait()
 
     if state == keys.states.pressed or state == keys.states.longHold then

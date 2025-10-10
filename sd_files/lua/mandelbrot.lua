@@ -1,33 +1,108 @@
--- adapted from https://rosettacode.org/wiki/Mandelbrot_set#Lua
+-- adapted from https://bisqwit.iki.fi/jutut/kuvat/programming_examples/mandelbrotbtrace.pdf
 
-local maxIterations = 10
-local minX, maxX, minY, maxY = -2.5, 2.5, -2.5, 2.5
-local miX, mxX, miY, mxY
+-- arrow keys, 9 and 0 to control view, escape to quit
+
+local maxIter = 64
+local chunk = 8
+local center = {-1,0}
+local radius = 1
+local minX, maxX, minY, maxY
 local wid, hei = 320, 320
-function remap( x, t1, t2, s1, s2 )
-	local f = ( x - t1 ) / ( t2 - t1 )
-	local g = f * ( s2 - s1 ) + s1
-	return g;
+
+function iterate(zr, zi, max)
+	local cnt, r, i, r2, i2, ri
+	cnt = 0
+	r,i = zr,zi
+	while( cnt < max ) do
+		r2 = r*r; i2 = i*i
+		if r2+i2 >= 4 then break end
+		ri = r*i
+		i = ri+ri + zi
+		r = r2-i2 + zr
+		cnt = cnt + 1
+	end
+	return cnt
 end
-function drawMandelbrot()
-	local pts, a, as, za, b, bs, zb, cnt, clr = {}
-	for j = 0, hei - 1 do
-		for i = 0, wid - 1 do
-			a = remap( i, 0, wid, minX, maxX )
-			b = remap( j, 0, hei, minY, maxY )
-			cnt = 0; za = a; zb = b
-			while( cnt < maxIterations ) do
-				as = a * a - b * b; bs = 2 * a * b
-				a = za + as; b = zb + bs
-				if math.abs( a ) + math.abs( b ) > 16 then break end
-				cnt = cnt + 1
-			end
-			if cnt == maxIterations then clr = 0
-			else clr = math.floor(remap( cnt, 0, maxIterations, 0, 255 ))
-			end
-			draw.point(i, j, colors.fromRGB(clr,clr,clr))
+
+function is_control_key()
+	state, _, code = keys.peek()
+	if state == keys.states.pressed then
+		if code == keys.up
+			or code == keys.down
+			or code == keys.left
+			or code == keys.right
+			or code == '9'
+			or code == '0'
+			or code == '['
+			or code == ']'
+			or code == keys.esc then
+				return true
 		end
+	end
+	keys.flush()
+	return false
+end
+
+function drawScanlineMandelbrot(max)
+	local zr, zi, cnt, clr
+	local st = chunk
+	local proc = {}
+	local stepR = (maxX - minX) / wid
+	local stepI = (maxY - minY) / hei
+	while st >= 1 do
+		for y = 0, hei - 1, st do
+			zi = minY + y * stepI
+			if proc[(y % (st*2))] then goto next end
+			for x = 0, wid - 1 do
+				zr = minX + x * stepR
+				cnt = iterate(zr, zi, max)
+				if cnt == max then clr = 0
+				else
+					cnt = math.floor(cnt/max*255)
+					clr = colors.fromHSV((-cnt-32)%256,255,127+math.floor(cnt/2))
+				end
+				draw.line(x, y, x, y+st-1, clr)
+				if is_control_key() then return end
+			end
+			::next::
+		end
+		proc[st%chunk] = true
+		st = math.floor(st/2)
 	end
 end
 
-drawMandelbrot()
+while true do
+	minX, maxX, minY, maxY = center[1]-radius, center[1]+radius, center[2]-radius, center[2]+radius
+	drawScanlineMandelbrot(maxIter)
+	while true do
+		_, _, code = keys.wait(false, true)
+		if code == keys.up then
+			center[2] = center[2] - radius * 0.25
+			break
+		elseif code == keys.down then
+			center[2] = center[2] + radius * 0.25
+			break
+		elseif code == keys.left then
+			center[1] = center[1] - radius * 0.25
+			break
+		elseif code == keys.right then
+			center[1] = center[1] + radius * 0.25
+			break
+		elseif code == '9' then
+			radius = radius * 4
+			break
+		elseif code == '0' then
+			radius = radius * 0.25
+			break
+		elseif code == '[' then
+			maxIter = maxIter - 10
+			break
+		elseif code == ']' then
+			maxIter = maxIter + 10
+			break
+		elseif code == keys.esc then
+			goto exit
+		end
+	end
+end
+::exit::
