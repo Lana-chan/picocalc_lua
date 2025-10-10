@@ -72,7 +72,10 @@ int main() {
 	fs_init();
 
 	L = luaL_newstate();
-	lua_sethook(L, lua_interrupt, LUA_MASKCOUNT, 1000);
+	// i keep fussing with this value but as low as 10 doesn't seem to give much or any performance downgrade
+	// lower makes interrupt more responsive
+	// instant interrupt (calling luaG_runerror inside keyboard_interrupt) causes hang
+	lua_sethook(L, lua_interrupt, LUA_MASKCOUNT, 50);
 	luaL_openlibs(L);
 
 	modules_register_wrappers(L);

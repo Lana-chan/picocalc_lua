@@ -797,6 +797,19 @@ while bRunning do
 end
 
 -- Cleanup
+function unrequire(m)
+	package.loaded[m] = nil
+	_G[m] = nil
+end
+
+unrequire("cc.internal.syntax.errors")
+unrequire("cc.internal.syntax.lexer")
+unrequire("cc.internal.syntax.parser")
+unrequire("cc.internal.menu")
+unrequire("cc.pretty")
+unrequire("cc.expect")
+collectgarbage()
+
 term.clear()
 term.setCursorBlink(false)
 term.setCursorPos(1, 1)
