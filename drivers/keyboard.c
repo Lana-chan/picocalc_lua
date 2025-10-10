@@ -2,6 +2,7 @@
 #include <stdatomic.h>
 
 #include <pico/stdio.h>
+#include "pico/util/queue.h"
 #include <hardware/gpio.h>
 #include <hardware/i2c.h>
 
@@ -43,6 +44,7 @@ static volatile input_event_t rx_buffer[KBD_BUFFER_SIZE];
 static volatile uint16_t rx_head = 0;
 static volatile uint16_t rx_tail = 0;
 static repeating_timer_t key_timer;
+queue_t key_fifo;
 
 keyboard_callback_t key_available_callback = NULL;
 keyboard_callback_t interrupt_callback = NULL;
@@ -138,9 +140,8 @@ static bool on_keyboard_timer(repeating_timer_t *rt) {
 	} else if (state == KEY_STATE_RELEASED) {
 		keystates[code] = KEY_STATE_IDLE;
 	}
-	uint16_t next_head = (rx_head + 1) & (KBD_BUFFER_SIZE - 1);
-	rx_buffer[rx_head] = (input_event_t){state, keyboard_modifiers, code};
-	rx_head = next_head;
+	input_event_t event = {state, keyboard_modifiers, code};
+	queue_try_add(&key_fifo, &event);
 	if (key_available_callback) key_available_callback();
 	return true;
 }
@@ -154,11 +155,11 @@ void keyboard_set_interrupt_callback(keyboard_callback_t callback) {
 }
 
 bool keyboard_key_available() {
-	return rx_head != rx_tail;
+	return !queue_is_empty(&key_fifo);
 }
 
 void keyboard_flush() {
-	rx_tail = rx_head;
+	while (queue_try_remove(&key_fifo, NULL)) tight_loop_contents();
 }
 
 unsigned char keyboard_getstate(unsigned char code) {
@@ -167,8 +168,9 @@ unsigned char keyboard_getstate(unsigned char code) {
 
 input_event_t keyboard_poll(bool peek) {
 	if (!keyboard_key_available()) return (input_event_t){0, 0, KEY_NONE};
-	input_event_t event = rx_buffer[rx_tail];
-	if (!peek) rx_tail = (rx_tail + 1) & (KBD_BUFFER_SIZE - 1);
+	input_event_t event;
+	if (peek) queue_peek_blocking(&key_fifo, &event);
+	else queue_remove_blocking(&key_fifo, &event);
 	return event;
 }
 
@@ -210,6 +212,7 @@ int keyboard_init() {
 	gpio_pull_up(KBD_SDA);
 	keyboard_modifiers = 0;
 	memset(keystates, KEY_STATE_IDLE, KEY_COUNT);
+	queue_init(&key_fifo, sizeof(input_event_t), KBD_BUFFER_SIZE);
 	while (i2c_kbd_read_key() != 0); // Drain queue
 	add_repeating_timer_ms(-10, on_keyboard_timer, NULL, &key_timer);
 }

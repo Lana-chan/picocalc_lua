@@ -14,8 +14,9 @@ static int l_draw_text(lua_State* L) {
 	int y = luaL_checknumber(L, 2);
 	u16 fg = luaL_checkinteger(L, 3);
 	u16 bg = luaL_checkinteger(L, 4);
-	const char* text = luaL_checkstring(L, 5);
-	lcd_fifo_draw_text(x, y, fg, bg, text);
+	size_t len;
+	const char* text = luaL_checklstring(L, 5, &len);
+	lcd_fifo_draw_text(x, y, fg, bg, text, len);
 	return 0;
 }
 

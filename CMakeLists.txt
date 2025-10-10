@@ -53,9 +53,9 @@ target_link_libraries(picolua
 
 target_compile_definitions(picolua PRIVATE
 	# rp2040-psram
-	PSRAM_MUTEX=1
-	#PSRAM_SPINLOCK=0
-	PSRAM_ASYNC=0
+	#PSRAM_MUTEX=1
+	PSRAM_SPINLOCK=1
+	PSRAM_ASYNC=1
 	PSRAM_PIN_CS=20
 	PSRAM_PIN_SCK=21
 	PSRAM_PIN_MOSI=2

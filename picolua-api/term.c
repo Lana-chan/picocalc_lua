@@ -73,8 +73,9 @@ static int l_term_setBackgroundColor(lua_State* L) {
 }
 
 static int l_term_write(lua_State* L) {
-	const char* text = luaL_checkstring(L, 1);
-	term_write(text);
+	size_t len;
+	const char* text = luaL_checklstring(L, 1, &len);
+	term_write(text, len);
 	return 0;
 }
 

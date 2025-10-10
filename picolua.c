@@ -72,7 +72,7 @@ int main() {
 	fs_init();
 
 	L = luaL_newstate();
-	lua_sethook(L, lua_interrupt, LUA_MASKCOUNT, 10);
+	lua_sethook(L, lua_interrupt, LUA_MASKCOUNT, 1000);
 	luaL_openlibs(L);
 
 	modules_register_wrappers(L);

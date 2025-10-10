@@ -21,21 +21,12 @@
 #define LCD_DC  14
 #define LCD_RST 15
 
-#define FIFO_LCD         0
-#define FIFO_LCD_DRAW    FIFO_LCD + 1
-#define FIFO_LCD_FILL    FIFO_LCD + 2
-#define FIFO_LCD_CLEAR   FIFO_LCD + 3
-#define FIFO_LCD_BUFEN   FIFO_LCD + 4
-#define FIFO_LCD_BUFBLIT FIFO_LCD + 5
-#define FIFO_LCD_CHAR    FIFO_LCD + 6
-#define FIFO_LCD_TEXT    FIFO_LCD + 7
-#define FIFO_LCD_SCROLL  FIFO_LCD + 8
-
 void(*lcd_draw_ptr) (u16*,int,int,int,int);
 void(*lcd_fill_ptr) (u16,int,int,int,int);
 void(*lcd_point_ptr) (u16,int,int);
 void(*lcd_clear_ptr) (void);
 psram_spi_inst_t psram_spi;
+psram_spi_inst_t* async_spi_inst;
 
 static int lcd_write_spi(void *buf, size_t len) {
 	return spi_write_blocking(spi1, buf, len);
@@ -136,7 +127,7 @@ static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
 	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
 		remain = width;
 		for (uint32_t ix = x; ix < (x + width); ix+=8) {
-			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)pixels, (remain < 8 ? remain<<1 : 16));
+			psram_write_async_fast(&psram_spi, (iy + ix)<<1, (uint8_t*)pixels, (remain < 8 ? remain<<1 : 16));
 			pixels += (remain < 8 ? remain : 8);
 			remain -= 8;
 		}
@@ -150,7 +141,7 @@ static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
 	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
 		remain = width;
 		for (uint32_t ix = x; ix < (x + width); ix+=8) {
-			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)buf, (remain < 8 ? remain<<1 : 16));
+			psram_write_async_fast(&psram_spi, (iy + ix)<<1, (uint8_t*)buf, (remain < 8 ? remain<<1 : 16));
 			remain -= 8;
 		}
 	}
@@ -172,8 +163,8 @@ void lcd_buffer_blit() {
 	gpio_put(LCD_DC, 1);
 
 	for (int y = 0; y < HEIGHT * WIDTH; y += WIDTH) {
-		for (int x = 0; x < WIDTH; x+=8) {
-			psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(buf + x), 16);
+		for (int x = 0; x < WIDTH; x+=10) {
+			psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(buf + x), 20);
 		}
 		spi_write16_blocking(spi1, buf, WIDTH);
 	}
@@ -249,9 +240,9 @@ void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c) {
 	lcd_draw(glyph_buf, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
 }
 
-void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text) {
+void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
 	//if (y <= -font.glyph_height || y >= HEIGHT) return;
-	while(*text) {
+	for (int i = 0; i < len; i++) {
 		lcd_draw_char(x, y, fg, bg, *text);
 		x += font.glyph_width;
 		if (x > WIDTH) return;
@@ -260,12 +251,12 @@ void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text) {
 }
 
 void lcd_printf(int x, int y, u16 fg, u16 bg, const char* format, ...) {
-	char buffer[256];
+	char buffer[512];
 	va_list list;
 	va_start(list, format);
-	int result = vsnprintf(buffer, 256, format, list);
+	int result = vsnprintf(buffer, 512, format, list);
 	if (result > -1) {
-		lcd_draw_text(x, y, fg, bg, buffer);
+		lcd_draw_text(x, y, fg, bg, buffer, result);
 	}
 }
 
@@ -496,8 +487,8 @@ int lcd_fifo_receiver(uint32_t message) {
 			y = multicore_fifo_pop_blocking_inline();
 			fg = multicore_fifo_pop_blocking_inline();
 			bg = multicore_fifo_pop_blocking_inline();
-			multicore_fifo_pop_string(&text);
-			lcd_draw_text((int)x, (int)y, (u16)fg, (u16)bg, text);
+			width = multicore_fifo_pop_string(&text);
+			lcd_draw_text((int)x, (int)y, (u16)fg, (u16)bg, text, width);
 			free(text);
 			return 1;
 
@@ -551,22 +542,22 @@ void lcd_fifo_draw_char(int x, int y, u16 fg, u16 bg, char c) {
 	multicore_fifo_push_blocking_inline(c);
 }
 
-void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text) {
+void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
 	multicore_fifo_push_blocking_inline(FIFO_LCD_TEXT);
 	multicore_fifo_push_blocking_inline(x);
 	multicore_fifo_push_blocking_inline(y);
 	multicore_fifo_push_blocking_inline(fg);
 	multicore_fifo_push_blocking_inline(bg);
-	multicore_fifo_push_string(text);
+	multicore_fifo_push_string(text, len);
 }
 
 void lcd_fifo_printf(int x, int y, u16 fg, u16 bg, const char* format, ...) {
-	char buffer[256];
+	char buffer[512];
 	va_list list;
 	va_start(list, format);
-	int result = vsnprintf(buffer, 256, format, list);
+	int result = vsnprintf(buffer, 512, format, list);
 	if (result > -1) {
-		lcd_fifo_draw_text(x, y, fg, bg, buffer);
+		lcd_fifo_draw_text(x, y, fg, bg, buffer, result);
 	}
 }
 

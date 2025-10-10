@@ -22,7 +22,7 @@ void lcd_fifo_clear();
 void lcd_fifo_buffer_enable(bool enable);
 void lcd_fifo_buffer_blit();
 void lcd_fifo_draw_char(int x, int y, u16 fg, u16 bg, char c);
-void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text);
+void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len);
 void lcd_fifo_printf(int x, int y, u16 fg, u16 bg, const char* format, ...);
 void lcd_fifo_scroll(int lines);
 
@@ -31,7 +31,7 @@ void lcd_fill(u16 color, int x, int y, int width, int height);
 void lcd_point(u16 color, int x, int y);
 void lcd_clear();
 void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c);
-void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text);
+void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len);
 void lcd_printf(int x, int y, u16 fg, u16 bg, const char* format, ...);
 void lcd_scroll(int lines);
 

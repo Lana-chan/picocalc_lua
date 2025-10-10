@@ -173,9 +173,8 @@ void term_set_bg(u16 color) {
 	ansi.bg = color;
 }
 
-void term_write(const char* text) {
-	lcd_fifo_draw_text(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, text);
-	int len = strlen(text);
+void term_write(const char* text, size_t len) {
+	lcd_fifo_draw_text(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, text, len);
 	ansi.x += (len >= TERM_WIDTH ? TERM_WIDTH : len);
 }
 

@@ -9,18 +9,6 @@
 
 #define abs(x) ((x) < 0 ? -(x) : (x))
 
-#define FIFO_DRAW          100
-#define FIFO_DRAW_POINT    FIFO_DRAW + 1
-#define FIFO_DRAW_CLEAR    FIFO_DRAW + 2
-#define FIFO_DRAW_RECT     FIFO_DRAW + 3
-#define FIFO_DRAW_RECTFILL FIFO_DRAW + 4
-#define FIFO_DRAW_LINE     FIFO_DRAW + 5
-#define FIFO_DRAW_CIRC     FIFO_DRAW + 6
-#define FIFO_DRAW_CIRCFILL FIFO_DRAW + 7
-#define FIFO_DRAW_POLY     FIFO_DRAW + 8
-#define FIFO_DRAW_POLYFILL FIFO_DRAW + 9
-#define FIFO_DRAW_TRI      FIFO_DRAW + 10
-
 static void draw_horizontal_line(i32 x1, i32 x2, i32 y, Color color) {
 	if (x1 >= WIDTH || x2 < 0 || y < 0 || y >= MEM_HEIGHT) return;
 	if (x1 < 0) x1 = 0;

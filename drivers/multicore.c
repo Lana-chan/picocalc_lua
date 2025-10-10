@@ -2,28 +2,28 @@
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
+#include "hardware/irq.h"
 #include "lcd.h"
 #include "draw.h"
 
 void handle_multicore_fifo() {
 	// take first FIFO packet and pass to different handlers
-	if (multicore_fifo_rvalid()) {
+	while (multicore_fifo_rvalid()) {
 		uint32_t packet = multicore_fifo_pop_blocking();
 		
-		if (lcd_fifo_receiver(packet)) return;
-		if (draw_fifo_receiver(packet)) return;
+		if (lcd_fifo_receiver(packet)) break;
+		if (draw_fifo_receiver(packet)) break;
 	}
+
+	multicore_fifo_clear_irq();
 }
 
-void multicore_fifo_push_string(const char* source) {
-	size_t len = strlen(source);
-	char* dest = malloc((size_t)len+1);
+void multicore_fifo_push_string(const char* source, size_t len) {
+	char* dest = strndup(source, len);
 	if (!dest) {
 		multicore_fifo_push_blocking_inline(0);
 		multicore_fifo_push_blocking_inline((uint32_t)NULL);
 	}
-	strncpy(dest, source, len);
-	dest[len] = 0;
 	multicore_fifo_push_blocking_inline(len);
 	multicore_fifo_push_blocking_inline((uint32_t)dest);
 }
@@ -37,8 +37,11 @@ size_t multicore_fifo_pop_string(char** string) {
 void multicore_main() {
 	lcd_init();
 	multicore_fifo_drain();
-
+	multicore_fifo_clear_irq();
+	irq_set_exclusive_handler(SIO_FIFO_IRQ_NUM(1), handle_multicore_fifo);
+	irq_set_enabled(SIO_FIFO_IRQ_NUM(1), true);
+	
 	while (true) {
-		handle_multicore_fifo();
+		tight_loop_contents();
 	}
 }
