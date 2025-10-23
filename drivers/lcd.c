@@ -126,23 +126,23 @@ static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
 	int remain;
 	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
 		remain = width;
-		for (uint32_t ix = x; ix < (x + width); ix+=8) {
-			psram_write_async_fast(&psram_spi, (iy + ix)<<1, (uint8_t*)pixels, (remain < 8 ? remain<<1 : 16));
-			pixels += (remain < 8 ? remain : 8);
-			remain -= 8;
+		for (uint32_t ix = x; ix < (x + width); ix+=10) {
+			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)pixels, (remain < 10 ? remain<<1 : 20));
+			pixels += (remain < 10 ? remain : 10);
+			remain -= 10;
 		}
 	}
 }
 
 static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
-	u16 buf[8];
+	u16 buf[10];
 	int remain;
-	for (int i = 0; i < 8; i++) buf[i] = color;
+	for (int i = 0; i < 10; i++) buf[i] = color;
 	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
 		remain = width;
-		for (uint32_t ix = x; ix < (x + width); ix+=8) {
-			psram_write_async_fast(&psram_spi, (iy + ix)<<1, (uint8_t*)buf, (remain < 8 ? remain<<1 : 16));
-			remain -= 8;
+		for (uint32_t ix = x; ix < (x + width); ix+=10) {
+			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)buf, (remain < 10 ? remain<<1 : 20));
+			remain -= 10;
 		}
 	}
 }

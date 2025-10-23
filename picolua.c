@@ -61,7 +61,7 @@ int main() {
 	size_t len;
 	char ch;
 
-	set_system_clk(220000);
+	set_system_clk(150000);
 
 	multicore_launch_core1(multicore_main);
 	sleep_ms(200);
