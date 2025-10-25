@@ -1,6 +1,6 @@
-# Minimal Lua for Picocalc
+# PicoCalc Lua
 
-This is a simple lua interpreter for PicoCalc. It contains a REPL, basic API to draw graphics, read keys and access the SD filesystem.
+A Lua interpreter for PicoCalc. It contains a REPL, basic API to draw graphics, read keys and access the SD filesystem.
 
 * Based on https://github.com/JeremyGrosser/picolua
 * Keyboard and lcd drivers based on https://github.com/hisptoot/picocalc_luckfox_lyra
@@ -27,43 +27,18 @@ cmake .. -DPICO_BOARD=pico2 # change depending on your board
 make
 ```
 
-## Run
-
-Hold BOOTSEL button, connect USB.
-
-```
-sudo cp picolua.uf2 /dev/disk/by-label/RP2350/
-```
-
 ## Usage
 
-Ctrl-Alt-F1   Reboot in BOOTSEL mode
-Ctrl-Alt-Del  Reboot 
-Enter         Excute
-Ctrl-C        Clear line
-Ctrl-L        Clear screen
-Up/Down       Small history
+|               |                        |
+| ------------- | ---------------------- |
+| Ctrl-Alt-F1   | Reboot in BOOTSEL mode |
+| Ctrl-Alt-Del  | Reboot                 |
+| Enter         | Excute                 |
+| Ctrl-C        | Clear line             |
+| Ctrl-L        | Clear screen           |
+| Up/Down       | Small history          |
 
-## Examples
-
-```
-lua> a=2
-lua> b=2
-print(a*b)
-4
-```
-
-## Binding to Pico SDK and other functions
-
-A few simple bindings for SDK functions have been added as examples. Here we turn the LED on:
-
-```
-lua> LED=25
-lua> sys.setOutput(LED, true)
-lua> sys.setPin(LED, true)
-```
-
-See [API.md](API.md) for full API documentation
+See [Getting Started](docs/Getting%20Started.md) and [API.md](docs/API.md) for full API documentation
 
 ## Notes
 

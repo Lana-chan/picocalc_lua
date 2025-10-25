@@ -59,6 +59,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`setBackgroundColor(color)`](#setbackgroundcolorcolor)
 	- [`write(text)`](#writetext)
 	- [`blit(text, fg, bg)`](#blittext-fg-bg)
+	- [`loadFont(filename)`](#loadfontfilename)
 - [`draw` - Drawing functions](#draw---drawing-functions)
 	- [`text(x, y, fg, bg, text)`](#textx-y-fg-bg-text)
 	- [`clear()`](#clear-1)
@@ -492,6 +493,15 @@ Similar to `write(text)` but controlling the foreground and background colors pe
 1. `text : string` - The text to be written
 2. `fg : string` - A string of hexadecimal values `0` to `f` matching ANSI colors for the foreground color
 3. `bg : string` - A string of hexadecimal values `0` to `f` matching ANSI colors for the background color
+
+## `loadFont(filename)`
+Loads a font from the SD card, falling back to the default built-in font in case of failure.
+
+**Parameters**
+1. `filename : string` - The filename on SD card of the font to load
+
+**Returns**
+1. `boolean` - Whether or not loading the font was successful
 
 
 # `draw` - Drawing functions
