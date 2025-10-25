@@ -4,9 +4,6 @@
 #include <stddef.h>
 #include "types.h"
 
-#define TERM_WIDTH 53 // 320 / font width
-#define TERM_HEIGHT 40 // 320 / font height
-
 #define ANSI_STACK_SIZE 16
 
 #define DEFAULT_FG 15

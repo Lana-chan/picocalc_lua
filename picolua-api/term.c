@@ -17,8 +17,8 @@ static int l_term_getCursorPos(lua_State* L) {
 static int l_term_setCursorPos(lua_State* L) {
 	int x = luaL_checkinteger(L, 1);
 	int y = luaL_checkinteger(L, 2);
-	x = (x < 1 ? 1 : (x > TERM_WIDTH ? TERM_WIDTH : x));
-	y = (y < 1 ? 1 : (y > TERM_HEIGHT ? TERM_HEIGHT : y));
+	x = (x < 1 ? 1 : (x > font.term_width ? font.term_width : x));
+	y = (y < 1 ? 1 : (y > font.term_height ? font.term_height : y));
 	term_set_pos(x-1, y-1);
 	return 0;
 }
@@ -35,8 +35,8 @@ static int l_term_setCursorBlink(lua_State* L) {
 }
 
 static int l_term_getSize(lua_State* L) {
-	lua_pushinteger(L, term_get_width());
-	lua_pushinteger(L, term_get_height());
+	lua_pushinteger(L, font.term_width);
+	lua_pushinteger(L, font.term_height);
 	return 2;
 }
 
@@ -87,6 +87,12 @@ static int l_term_blit(lua_State* L) {
 	return 0;
 }
 
+static int l_term_loadfont(lua_State* L) {
+	const char* filename = luaL_optstring(L, 1, NULL);
+	lua_pushboolean(L, lcd_load_font(filename) == 0);
+	return 1;
+}
+
 /*
 -write(text)	Write text at the current cursor position, moving the cursor to the end of the text.
 scroll(y)	Move all positions up (or down) by y pixels.
@@ -119,6 +125,7 @@ int luaopen_term(lua_State *L) {
 		{"setBackgroundColor", l_term_setBackgroundColor},
 		{"write", l_term_write},
 		{"blit", l_term_blit},
+		{"loadFont", l_term_loadfont},
 		{NULL, NULL}
 	};
 	

@@ -11,8 +11,10 @@
 #include "psram_spi.h"
 
 #include "lcd.h"
-#include "font.h"
+#include "default_font.h"
 #include "multicore.h"
+#include "fs.h"
+#include "../pico_fatfs/fatfs/ff.h"
 
 #define LCD_SCK 10
 #define LCD_TX  11
@@ -90,8 +92,8 @@ static void lcd_direct_draw(u16* pixels, int x, int y, int width, int height) {
 static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
 	y %= MEM_HEIGHT;
 
-	x = (x < 0 ? 0 : (x >= WIDTH ? WIDTH : x));
-	width = (width < 0 ? 0 : (x + width - 1 >= WIDTH ? WIDTH - x - 1 : width));
+	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
+	width = (width < 0 ? 0 : (x + width - 1 >= LCD_WIDTH ? LCD_WIDTH - x - 1 : width));
 
 	lcd_set_region(x, y, x + width - 1, y + height - 1, REGION_WRITE);
 
@@ -99,9 +101,9 @@ static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
 	u16 color2 = (color >> 8) | (color << 8);
 	spi_set_format(spi1, 16, 0, 0, SPI_MSB_FIRST);
 
-	u16 buf[WIDTH];
+	u16 buf[LCD_WIDTH];
 	int remaining = width * height;
-	int chunk_size = remaining < WIDTH ? remaining : WIDTH;
+	int chunk_size = remaining < LCD_WIDTH ? remaining : LCD_WIDTH;
 	for (int i = 0; i < chunk_size; i++) buf[i] = color;
 
 	while (remaining > chunk_size) {
@@ -119,12 +121,12 @@ static void lcd_direct_point(u16 color, int x, int y) {
 }
 
 static void lcd_direct_clear() {
-	lcd_fill(0, 0, 0, WIDTH, MEM_HEIGHT);
+	lcd_fill(0, 0, 0, LCD_WIDTH, MEM_HEIGHT);
 }
 
 static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
 	int remain;
-	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
+	for (uint32_t iy = y * LCD_WIDTH; iy < (y + height) * LCD_WIDTH; iy += LCD_WIDTH) {
 		remain = width;
 		for (uint32_t ix = x; ix < (x + width); ix+=10) {
 			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)pixels, (remain < 10 ? remain<<1 : 20));
@@ -138,7 +140,7 @@ static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
 	u16 buf[10];
 	int remain;
 	for (int i = 0; i < 10; i++) buf[i] = color;
-	for (uint32_t iy = y * WIDTH; iy < (y + height) * WIDTH; iy += WIDTH) {
+	for (uint32_t iy = y * LCD_WIDTH; iy < (y + height) * LCD_WIDTH; iy += LCD_WIDTH) {
 		remain = width;
 		for (uint32_t ix = x; ix < (x + width); ix+=10) {
 			psram_write(&psram_spi, (iy + ix)<<1, (uint8_t*)buf, (remain < 10 ? remain<<1 : 20));
@@ -148,25 +150,25 @@ static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
 }
 
 static void lcd_buffer_point(u16 color, int x, int y) {
-	psram_write16(&psram_spi, (x + y * WIDTH)<<1, color);
+	psram_write16(&psram_spi, (x + y * LCD_WIDTH)<<1, color);
 }
 
 static void lcd_buffer_clear() {
-	lcd_buffer_fill(0, 0, 0, WIDTH, HEIGHT);
+	lcd_buffer_fill(0, 0, 0, LCD_WIDTH, LCD_HEIGHT);
 }
 
 void lcd_buffer_blit() {
 	lcd_set_region(0, 0, 319, 319, REGION_WRITE);
 
-	u16 buf[WIDTH];
+	u16 buf[LCD_WIDTH];
 	spi_set_format(spi1, 16, 0, 0, SPI_MSB_FIRST);
 	gpio_put(LCD_DC, 1);
 
-	for (int y = 0; y < HEIGHT * WIDTH; y += WIDTH) {
-		for (int x = 0; x < WIDTH; x+=10) {
+	for (int y = 0; y < LCD_HEIGHT * LCD_WIDTH; y += LCD_WIDTH) {
+		for (int x = 0; x < LCD_WIDTH; x+=10) {
 			psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(buf + x), 20);
 		}
-		spi_write16_blocking(spi1, buf, WIDTH);
+		spi_write16_blocking(spi1, buf, LCD_WIDTH);
 	}
 
 	spi_set_format(spi1, 8, 0, 0, SPI_MSB_FIRST);
@@ -211,7 +213,7 @@ void lcd_scroll(int lines) {
 }
 
 void lcd_setup_scrolling(int top_fixed_lines, int bottom_fixed_lines) {
-	int vertical_scrolling_area = HEIGHT - (top_fixed_lines + bottom_fixed_lines);
+	int vertical_scrolling_area = LCD_HEIGHT - (top_fixed_lines + bottom_fixed_lines);
 	gpio_put(LCD_CS, 0);
 	lcd_write_reg(0x33, (top_fixed_lines >> 8), (top_fixed_lines & 0xFF), (vertical_scrolling_area >> 8), 
 		(vertical_scrolling_area & 0xFF), (bottom_fixed_lines >> 8), (bottom_fixed_lines & 0xff));
@@ -219,25 +221,66 @@ void lcd_setup_scrolling(int top_fixed_lines, int bottom_fixed_lines) {
 }
 
 font_t font = {
-	.glyphs = (u8*)GLYPHS,
-	.glyph_width = GLYPH_WIDTH,
-	.glyph_height = GLYPH_HEIGHT,
+	.glyphs = NULL,
+	.glyph_width = 0,
+	.glyph_height = 0,
+	.glyph_colorbuf = NULL
 };
 
+int lcd_load_font(const char* filename) {
+	if (font.glyphs) { free(font.glyphs); font.glyphs = NULL; }
+	if (font.glyph_colorbuf) { free(font.glyph_colorbuf); font.glyph_colorbuf = NULL; }
 
-u16 glyph_buf[GLYPH_WIDTH * GLYPH_HEIGHT] __attribute__((aligned(4))); 
-
-void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c) {
-	int offset = ((u8)c) * GLYPH_HEIGHT;
-	for (int j = 0; j < GLYPH_HEIGHT; j++) {
-		for (int i = 0; i < GLYPH_WIDTH; i++) {
-			int mask = 1 << i;
-			glyph_buf[i + j * GLYPH_WIDTH] = (font.glyphs[offset] & mask) ? fg : bg;
-		}
-		offset++;
+	if (!filename || filename[0] == '\0') {
+		font.glyphs = malloc(2049 * sizeof(u8));
+		memcpy(font.glyphs, (u8*)DEFAULT_GLYPHS, 2049);
+		font.glyph_count = 255;
+		font.glyph_width = DEFAULT_GLYPH_WIDTH;
+		font.glyph_height = DEFAULT_GLYPH_HEIGHT;
+		font.firstcode = 0;
+	} else {
+		FRESULT res;
+		FIL fp;
+		uint8_t bytesize;
+		res = f_open(&fp, filename, FA_READ);
+		if (res != FR_OK) { lcd_load_font(NULL); return res; }
+		res = f_lseek(&fp, 2); // skip length
+		if (res != FR_OK) { lcd_load_font(NULL); return res; }
+		res = f_read(&fp, &font.glyph_count, 1, NULL);
+		if (res != FR_OK) { lcd_load_font(NULL); return res; }
+		res = f_read(&fp, &font.firstcode, 1, NULL);
+		if (res != FR_OK) { lcd_load_font(NULL); return res; }
+		res = f_read(&fp, &font.glyph_width, 1, NULL);
+		if (res != FR_OK) { lcd_load_font(NULL); return res; }
+		res = f_read(&fp, &font.glyph_height, 1, NULL);
+		if (res != FR_OK) { lcd_load_font(NULL); return res; }
+		res = f_read(&fp, &bytesize, 1, NULL);
+		if (res != FR_OK) { lcd_load_font(NULL); return res; }
+		font.glyphs = malloc(font.glyph_count * bytesize * sizeof(u8));
+		res = f_read(&fp, font.glyphs, font.glyph_count * bytesize, NULL);
+		if (res != FR_OK) return res;
+		f_close(&fp);
 	}
 
-	lcd_draw(glyph_buf, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+	font.bytewidth = font.glyph_width/8 + (font.glyph_width % 8 != 0);
+	font.glyph_colorbuf = malloc(font.glyph_height * font.glyph_width * sizeof(u16));
+	font.term_width = LCD_WIDTH / font.glyph_width;
+	font.term_height = LCD_HEIGHT / font.glyph_height;
+	return FR_OK;
+}
+
+void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c) {
+	if (c > font.glyph_count + font.firstcode) c = 0;
+	int offset = ((u8)(c - font.firstcode)) * font.bytewidth * font.glyph_height;
+	for (int j = 0; j < font.glyph_height; j++) {
+		for (int i = 0; i < font.glyph_width; i++) {
+			int mask = (1 << (7 - i%8));
+			font.glyph_colorbuf[i + j * font.glyph_width] = (font.glyphs[offset + i / 8] & mask) ? fg : bg;
+		}
+		offset+=font.bytewidth;
+	}
+
+	lcd_draw(font.glyph_colorbuf, x, y, font.glyph_width, font.glyph_height);
 }
 
 void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
@@ -245,7 +288,7 @@ void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
 	for (int i = 0; i < len; i++) {
 		lcd_draw_char(x, y, fg, bg, *text);
 		x += font.glyph_width;
-		if (x > WIDTH) return;
+		if (x > LCD_WIDTH) return;
 		text ++;
 	}
 }
@@ -408,6 +451,8 @@ void lcd_init() {
 
 	psram_spi = psram_spi_init(pio0, -1);
 	lcd_buffer_enable(false);
+
+	lcd_load_font(NULL);
 
 	lcd_clear();
 	lcd_on();

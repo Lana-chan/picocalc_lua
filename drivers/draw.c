@@ -10,10 +10,10 @@
 #define abs(x) ((x) < 0 ? -(x) : (x))
 
 static void draw_horizontal_line(i32 x1, i32 x2, i32 y, Color color) {
-	if (x1 >= WIDTH || x2 < 0 || y < 0 || y >= MEM_HEIGHT) return;
+	if (x1 >= LCD_WIDTH || x2 < 0 || y < 0 || y >= MEM_HEIGHT) return;
 	if (x1 < 0) x1 = 0;
-	if (x2 >= WIDTH) x2 = WIDTH;
-	int offset = y * WIDTH;
+	if (x2 >= LCD_WIDTH) x2 = LCD_WIDTH;
+	int offset = y * LCD_WIDTH;
 	lcd_fill(color, x1, y, x2 - x1 + 1, 1);
 }
 
@@ -64,7 +64,7 @@ void draw_clear() {
 }
 
 void draw_point(i32 x, i32 y, Color color) {
-	if (x >= 0 && x < WIDTH && y >= 0 && y < MEM_HEIGHT) lcd_point(color, x, y);
+	if (x >= 0 && x < LCD_WIDTH && y >= 0 && y < MEM_HEIGHT) lcd_point(color, x, y);
 }
 
 void draw_fill_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
@@ -76,7 +76,7 @@ void draw_fill_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
 		height += y;
 		y = 0;
 	}
-	if (x + width > WIDTH) width = WIDTH - x;
+	if (x + width > LCD_WIDTH) width = LCD_WIDTH - x;
 	if (y + height > MEM_HEIGHT) height = MEM_HEIGHT - y;
 
 	lcd_fill(color, x, y, width, height);
@@ -246,10 +246,10 @@ void draw_fill_polygon(int n, float* points, Color color) {
 
 		//  Fill the pixels between node pairs.
 		for (i = 0; i < nodes; i += 2) {
-			if   (nodeX[i] >= WIDTH) break;
+			if   (nodeX[i] >= LCD_WIDTH) break;
 			if   (nodeX[i + 1] > 0 ) {
 				if (nodeX[i] < 0 ) nodeX[i] = 0;
-				if (nodeX[i + 1] >= WIDTH ) nodeX[i + 1] = WIDTH - 1;
+				if (nodeX[i + 1] >= LCD_WIDTH ) nodeX[i + 1] = LCD_WIDTH - 1;
 				draw_horizontal_line(nodeX[i], nodeX[i + 1], pixelY, color);
 			}
 		}

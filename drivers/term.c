@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "font.h"
 #include "lcd.h"
 #include "keyboard.h"
 
@@ -78,11 +77,16 @@ static ansi_t ansi = {
 };
 
 static int ansi_len_to_lcd_x(int len) {
-	return ((ansi.x + len) % TERM_WIDTH) * GLYPH_WIDTH;
+	return ((ansi.x + len) % font.term_width) * font.glyph_width;
 }
 
 static int ansi_len_to_lcd_y(int len) {
-	return (ansi.y + (len + ansi.x) / TERM_WIDTH) * GLYPH_HEIGHT;
+	return (ansi.y + (len + ansi.x) / font.term_width) * font.glyph_height;
+}
+
+void term_scroll(int lines) {
+	//term_erase_line(0); // didn't work?
+	lcd_fifo_scroll(lines * font.glyph_height);
 }
 
 void term_clear() {
@@ -92,7 +96,7 @@ void term_clear() {
 }
 
 void term_erase_line(int y) {
-	lcd_fifo_fill(ansi.bg, 0, y * GLYPH_HEIGHT, 320, GLYPH_HEIGHT);
+	lcd_fifo_fill(ansi.bg, 0, y * font.glyph_height, 320, font.glyph_height);
 }
 
 static void draw_cursor() {
@@ -100,14 +104,14 @@ static void draw_cursor() {
 		ansi.cx = ansi_len_to_lcd_x(ansi.len);
 		ansi.cy = ansi_len_to_lcd_y(ansi.len);
 		// this used to be an underline but without a buffer of what it draws over, it causes too many artifacts
-		lcd_fifo_fill(ansi.fg, ansi.cx, ansi.cy, 1, GLYPH_HEIGHT - 1);
+		lcd_fifo_fill(ansi.fg, ansi.cx, ansi.cy, 1, font.glyph_height - 1);
 		ansi.cursor_visible = true;
 	}
 }
 
 static void erase_cursor() {
 	if (ansi.cursor_enabled && ansi.cursor_visible) {
-		lcd_fifo_fill(ansi.bg, ansi.cx, ansi.cy, 1, GLYPH_HEIGHT - 1);
+		lcd_fifo_fill(ansi.bg, ansi.cx, ansi.cy, 1, font.glyph_height - 1);
 		ansi.cursor_visible = false;
 	}
 }
@@ -149,16 +153,9 @@ int term_get_y() {
 void term_set_pos(int x, int y) {
 	ansi.cursor_manual = true;
 	erase_cursor();
-	if (x >= 0 && x < TERM_WIDTH) ansi.x = x;
-	if (y >= 0 && y < TERM_HEIGHT) ansi.y = y;
+	if (x >= 0 && x < font.term_width) ansi.x = x;
+	if (y >= 0 && y < font.term_height) ansi.y = y;
 	draw_cursor();
-}
-
-int term_get_width() {
-	return TERM_WIDTH;
-}
-int term_get_height() {
-	return TERM_HEIGHT;
 }
 
 u16 term_get_fg() {
@@ -176,8 +173,8 @@ void term_set_bg(u16 color) {
 }
 
 void term_write(const char* text, size_t len) {
-	lcd_fifo_draw_text(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, text, len);
-	ansi.x += (len >= TERM_WIDTH ? TERM_WIDTH : len);
+	lcd_fifo_draw_text(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, text, len);
+	ansi.x += (len >= font.term_width ? font.term_width : len);
 }
 
 void term_blit(const char* text, const char* fg, const char* bg) {
@@ -190,9 +187,9 @@ void term_blit(const char* text, const char* fg, const char* bg) {
 		if (*lbg >= '0' && *lbg <= '9') pbg = palette[*lbg - '0'];
 		else if (*lbg >= 'a' && *lbg <= 'f') pbg = palette[*lbg - 'a' + 10];
 		else if (*lbg >= 'A' && *lbg <= 'F') pbg = palette[*lbg - 'A' + 10];
-		lcd_fifo_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, pfg, pbg, *text);
+		lcd_fifo_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, pfg, pbg, *text);
 		ansi.x += 1;
-		if (ansi.x > TERM_WIDTH) return;
+		if (ansi.x > font.term_width) return;
 		text ++;
 		lfg ++; if (!*lfg) lfg = fg;
 		lbg ++; if (!*lbg) lbg = bg;
@@ -207,19 +204,19 @@ static void out_char(char c) {
 	} else if (c == '\b') ansi.x -= 1;
 	//else if (c == '\r') ansi.x = 0;
 	else if (c == '\t') {
-		lcd_fifo_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, ' ');
+		lcd_fifo_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, ' ');
 		ansi.x += 1;
 	} else if (c >= 32 && c < 127) {
-		lcd_fifo_draw_char(ansi.x * GLYPH_WIDTH, ansi.y * GLYPH_HEIGHT, ansi.fg, ansi.bg, c);
+		lcd_fifo_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, c);
 		ansi.x += 1;
 	}
-	if (ansi.x >= TERM_WIDTH) {
+	if (ansi.x >= font.term_width) {
 		ansi.x = 0;
 		ansi.y += 1;
 		term_erase_line(ansi.y);
 	}
-	if (ansi.y >= TERM_HEIGHT) {
-		lcd_fifo_scroll((ansi.y - (TERM_HEIGHT - 1)) * GLYPH_HEIGHT);
+	if (ansi.y >= font.term_height) {
+		term_scroll(ansi.y - (font.term_height - 1));
 	}
 }
 
@@ -315,7 +312,7 @@ stdio_driver_t stdio_picocalc = {
 static void term_erase_input(int size) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		lcd_fifo_fill(ansi.bg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
+		lcd_fifo_fill(ansi.bg, x, y, font.glyph_width, font.glyph_height);
 	}
 }
 
@@ -323,10 +320,10 @@ static void term_draw_input(char* buffer, int size, int cursor) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
 		if (i < size) lcd_fifo_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
-		else lcd_fifo_fill(ansi.bg, x, y, GLYPH_WIDTH, GLYPH_HEIGHT);
-		//if (ansi.cursor_enabled && i == cursor) lcd_fifo_fill(ansi.fg, x, y + GLYPH_HEIGHT - 3, GLYPH_WIDTH, 2);
+		else lcd_fifo_fill(ansi.bg, x, y, font.glyph_width, font.glyph_height);
+		//if (ansi.cursor_enabled && i == cursor) lcd_fifo_fill(ansi.fg, x, y + font.glyph_height - 3, font.glyph_width, 2);
 	}
-	if (ansi.y + (size + ansi.x) / TERM_WIDTH >= TERM_HEIGHT) lcd_fifo_scroll((ansi.y + (size + ansi.x) / TERM_WIDTH - (TERM_HEIGHT-1)) * GLYPH_HEIGHT);
+	if (ansi.y + (size + ansi.x) / font.term_width >= font.term_height) term_scroll(ansi.y + (size + ansi.x) / font.term_width - (font.term_height-1));
 }
 
 static void history_save(history_t* history, int entry, char* text, int size) {
@@ -362,8 +359,8 @@ int term_readline(char* prompt, char* buffer, int max_length, history_t* history
 			} else if (event.code == KEY_ENTER) {
 				term_draw_input(buffer, size, -1);
 				buffer[size] = '\0';
-				ansi.x += size % TERM_WIDTH;
-				ansi.y += size / TERM_WIDTH;
+				ansi.x += size % font.term_width;
+				ansi.y += size / font.term_width;
 				stdio_picocalc_out_chars("\n", 1);
 				history_save(history, 0, buffer, size);
 				ansi.len = 0;

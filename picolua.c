@@ -81,6 +81,9 @@ int main() {
 	modules_register_wrappers(L);
 	int mounted = fs_mount();
 
+	if (mounted) lcd_load_font("default.fnt");
+
+	term_clear();
 	printf("    \x1b[93mPicoCalc Lua\x1b[m %s\n", GIT_DESC);
 	printf("    %u bytes free\n", get_free_memory());
 	// TODO: scale with font size
