@@ -14,7 +14,7 @@ static FATFS global_fs;
 #define SD_CS     17
 #define SD_SCK    18
 #define SD_DETECT 22
-#define DEBOUNCE_US 50 * 1000ull
+#define DEBOUNCE_US 80 * 1000ull
 
 static void sd_hotplug(uint gpio, uint32_t events) {
 	// wait debounce_ms and make sure status is still the same, then act accordingly
@@ -63,7 +63,7 @@ void fs_init() {
 }
 
 int fs_mount() {
-	return f_mount(&global_fs, "", 0) == FR_OK;
+	return f_mount(&global_fs, "", 1) == FR_OK;
 }
 
 int fs_unmount() {

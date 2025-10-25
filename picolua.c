@@ -28,6 +28,7 @@
 
 #define PROMPT "lua> "
 #define STARTUP_FILE "main.lua"
+#define STARTUP_FONT "default.fnt"
 
 extern const char* GIT_DESC;
 lua_State *L;
@@ -81,15 +82,14 @@ int main() {
 	modules_register_wrappers(L);
 	int mounted = fs_mount();
 
-	if (mounted) lcd_load_font("default.fnt");
+	if (mounted && fs_exists(STARTUP_FONT)) lcd_load_font(STARTUP_FONT);
 
 	term_clear();
 	printf("    \x1b[93mPicoCalc Lua\x1b[m %s\n", GIT_DESC);
 	printf("    %u bytes free\n", get_free_memory());
-	// TODO: scale with font size
-	draw_fifo_fill_circle(7, 9, 5, RGB(100,100,255));
-	draw_fifo_fill_circle(14, 2, 2, RGB(100,100,255));
-	draw_fifo_fill_circle(9, 8, 2, RGB(255,255,255));
+	draw_fifo_fill_circle(2*font.glyph_width - font.glyph_height / 2, font.glyph_height * 1.125, font.glyph_height / 1.6, RGB(100,100,255));
+	draw_fifo_fill_circle(2*font.glyph_width + font.glyph_height * 0.375, font.glyph_height * 0.25, font.glyph_height / 4, RGB(100,100,255));
+	draw_fifo_fill_circle(2*font.glyph_width - font.glyph_height / 4, font.glyph_height * 0.875, font.glyph_height / 4, RGB(255,255,255));
 	if (mounted) {
 		printf("\x1b[92mSD card mounted!\x1b[m\n");
 
