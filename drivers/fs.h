@@ -1,6 +1,7 @@
 #pragma once
+#include <stdatomic.h>
 
-extern bool fs_needs_remount;
+extern volatile atomic_bool fs_needs_remount;
 
 void fs_init();
 int fs_mount();

@@ -8,7 +8,7 @@
 void handle_multicore_fifo() {
 	// take first FIFO packet and pass to different handlers
 	while (multicore_fifo_rvalid()) {
-		uint32_t packet = multicore_fifo_pop_blocking();
+		uint32_t packet = multicore_fifo_pop_blocking_inline();
 		
 		if (lcd_fifo_receiver(packet)) break;
 		if (draw_fifo_receiver(packet)) break;

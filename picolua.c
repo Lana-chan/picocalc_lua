@@ -25,22 +25,24 @@ int main() {
 	keyboard_init();
 	stdio_picocalc_init(); 
 	fs_init();
-	
-	multicore_launch_core1(lua_main);
-	sleep_ms(200);
-
+		
 	multicore_fifo_drain();
 	multicore_fifo_clear_irq();
 
+	multicore_launch_core1(lua_main);
+	
+	irq_set_exclusive_handler(SIO_FIFO_IRQ_NUM(0), handle_multicore_fifo);
+	irq_set_enabled(SIO_FIFO_IRQ_NUM(0), true);
+
 	while (true) {
-		handle_multicore_fifo();
-		if (fs_needs_remount) {
+		if (atomic_load(&fs_needs_remount) == true) {
 			if (fs_mount()) {
 				printf("\x1b[92mOK!\x1b[m\n");
 			} else {
 				printf("Failed to mount!\x1b[m\n");
 			}
-			fs_needs_remount = false;
+			atomic_store(&fs_needs_remount, false);
 		}
+		sleep_ms(10);
 	}
 }

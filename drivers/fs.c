@@ -9,7 +9,7 @@
 
 static FATFS global_fs;
 static bool mounted = false;
-bool fs_needs_remount = false;
+volatile atomic_bool fs_needs_remount = false;
 
 #define SD_MISO   16
 #define SD_MOSI   19
@@ -37,7 +37,7 @@ static void sd_hotplug(uint gpio, uint32_t events) {
 			busy_wait_us(DEBOUNCE_US);
 			if (gpio_get(SD_DETECT) == 0) {
 				printf("\x1b[91mSD inserted, mounting...");
-				fs_needs_remount = true;
+				atomic_store(&fs_needs_remount, true);
 			}
 		}
 		gpio_acknowledge_irq(SD_DETECT, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL);
