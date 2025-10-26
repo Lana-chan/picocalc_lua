@@ -217,9 +217,11 @@ int keyboard_init() {
 	add_repeating_timer_ms(-10, on_keyboard_timer, NULL, &key_timer);
 }
 
-int get_battery() {
+int get_battery(bool* charging) {
 	if (!i2c_kbd_command(REG_ID_BAT)) return -1;
 	int result = 0;
 	if (!i2c_kbd_read((unsigned char*)&result, 2)) return -1;
-	return result >> 8;
+	result >>= 8;
+	*charging = (result & 1<<7) != 0;
+	return result & ~(1<<7);
 }

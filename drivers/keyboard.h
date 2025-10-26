@@ -186,4 +186,4 @@ unsigned char keyboard_getstate(unsigned char code);
 bool keyboard_key_available();
 void keyboard_flush();
 
-int get_battery();
+int get_battery(bool* charging);

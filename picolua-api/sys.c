@@ -147,9 +147,11 @@ static int l_keyboard_available(lua_State* L) {
 }
 
 static int l_get_battery(lua_State* L) {
-	int battery = get_battery();
+	bool charging = false;
+	int battery = get_battery(&charging);
 	lua_pushinteger(L, battery);
-	return 1;
+	lua_pushboolean(L, charging);
+	return 2;
 }
 
 static int l_get_clock(lua_State* L) {

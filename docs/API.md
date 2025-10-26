@@ -133,6 +133,7 @@ Gets the current state of charge of the battery
 
 **Returns**
 1. `number` - The battery state in 0-100 percentage
+2. `boolean` - Whether or not the charger is connected
 
 ## `getClock()`
 Gets the current CPU clock speed
