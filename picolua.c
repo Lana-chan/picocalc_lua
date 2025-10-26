@@ -19,7 +19,7 @@
 #include "corelua.h"
 
 int main() {
-	set_system_clk(150000);
+	set_system_mhz(150);
 
 	lcd_init();
 	keyboard_init();

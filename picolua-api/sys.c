@@ -24,12 +24,12 @@ uint32_t get_free_memory() {
 	return get_total_memory() - m.uordblks;
 }
 
-uint32_t get_system_clk() {
-	return frequency_count_khz(clk_sys);
+uint32_t get_system_mhz() {
+	return clock_get_hz(clk_sys) / 1000000ull;
 }
 
-bool set_system_clk(uint32_t clk) {
-	if (set_sys_clock_khz(clk, true)) {
+bool set_system_mhz(uint32_t clk) {
+	if (set_sys_clock_khz(clk * 1000ull, true)) {
 		return true;
 	}
 	return false;
@@ -153,13 +153,13 @@ static int l_get_battery(lua_State* L) {
 }
 
 static int l_get_clock(lua_State* L) {
-	lua_pushinteger(L, get_system_clk());
+	lua_pushinteger(L, get_system_mhz());
 	return 1;
 }
 
 static int l_set_clock(lua_State* L) {
-	uint32_t clk = luaL_checkinteger(L, 1);
-	lua_pushboolean(L, set_system_clk(clk));
+	uint16_t clk = luaL_checkinteger(L, 1);
+	lua_pushboolean(L, set_system_mhz(clk));
 	return 1;
 }
 

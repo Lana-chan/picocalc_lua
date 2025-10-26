@@ -138,13 +138,13 @@ Gets the current state of charge of the battery
 Gets the current CPU clock speed
 
 **Returns**
-1. `number` - Current clock speed in KHz
+1. `number` - Current clock speed in MHz
 
 ## `setClock(speed)`
 Sets the CPU clock speed
 
 **Parameters**
-1. `speed : number` - The desired clock speed in KHz
+1. `speed : number` - The desired clock speed in MHz
 
 **Returns**
 1. `boolean` - Whether or not the CPU clock was able to be set
