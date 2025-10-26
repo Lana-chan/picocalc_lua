@@ -12,7 +12,6 @@
 
 #include "lcd.h"
 #include "default_font.h"
-#include "multicore.h"
 #include "fs.h"
 #include "../pico_fatfs/fatfs/ff.h"
 
@@ -157,7 +156,7 @@ static void lcd_buffer_clear() {
 	lcd_buffer_fill(0, 0, 0, LCD_WIDTH, LCD_HEIGHT);
 }
 
-void lcd_buffer_blit() {
+void lcd_buffer_blit_local() {
 	lcd_set_region(0, 0, 319, 319, REGION_WRITE);
 
 	u16 buf[LCD_WIDTH];
@@ -175,23 +174,23 @@ void lcd_buffer_blit() {
 	gpio_put(LCD_CS, 1);
 }
 
-void lcd_draw(u16* pixels, int x, int y, int width, int height) {
+void lcd_draw_local(u16* pixels, int x, int y, int width, int height) {
 	lcd_draw_ptr(pixels, x, y, width, height);
 }
 
-void lcd_fill(u16 color, int x, int y, int width, int height) {
+void lcd_fill_local(u16 color, int x, int y, int width, int height) {
 	lcd_fill_ptr(color, x, y, width, height);
 }
 
-void lcd_point(u16 color, int x, int y) {
+void lcd_point_local(u16 color, int x, int y) {
 	lcd_point_ptr(color, x, y);
 }
 
-void lcd_clear() {
+void lcd_clear_local() {
 	lcd_clear_ptr();
 }
 
-void lcd_buffer_enable(bool enable) {
+void lcd_buffer_enable_local(bool enable) {
 	if (enable) {
 		lcd_draw_ptr = &lcd_buffer_draw;
 		lcd_fill_ptr = &lcd_buffer_fill;
@@ -205,7 +204,7 @@ void lcd_buffer_enable(bool enable) {
 	}
 }
 
-void lcd_scroll(int lines) {
+void lcd_scroll_local(int lines) {
 	lines %= MEM_HEIGHT;
 	gpio_put(LCD_CS, 0);
 	lcd_write_reg(0x37, (lines >> 8), (lines & 0xFF));
@@ -269,7 +268,7 @@ int lcd_load_font(const char* filename) {
 	return FR_OK;
 }
 
-void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c) {
+void lcd_draw_char_local(int x, int y, u16 fg, u16 bg, char c) {
 	if (c > font.glyph_count + font.firstcode) c = 0;
 	int offset = ((u8)(c - font.firstcode)) * font.bytewidth * font.glyph_height;
 	for (int j = 0; j < font.glyph_height; j++) {
@@ -283,7 +282,7 @@ void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c) {
 	lcd_draw(font.glyph_colorbuf, x, y, font.glyph_width, font.glyph_height);
 }
 
-void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
+void lcd_draw_text_local(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
 	//if (y <= -font.glyph_height || y >= HEIGHT) return;
 	for (int i = 0; i < len; i++) {
 		lcd_draw_char(x, y, fg, bg, *text);
@@ -487,13 +486,19 @@ int lcd_fifo_receiver(uint32_t message) {
 	char* text;
 
 	switch (message) {
+		case FIFO_LCD_POINT:
+			fg = multicore_fifo_pop_blocking_inline();
+			x = multicore_fifo_pop_blocking_inline();
+			y = multicore_fifo_pop_blocking_inline();
+			lcd_point_local((u16)fg, (int)x, (int)y);
+
 		case FIFO_LCD_DRAW:
 			fg = multicore_fifo_pop_blocking_inline();
 			x = multicore_fifo_pop_blocking_inline();
 			y = multicore_fifo_pop_blocking_inline();
 			width = multicore_fifo_pop_blocking_inline();
 			height = multicore_fifo_pop_blocking_inline();
-			lcd_draw((u16*)fg, (int)x, (int)y, (int)width, (int)height);
+			lcd_draw_local((u16*)fg, (int)x, (int)y, (int)width, (int)height);
 			return 1;
 
 		case FIFO_LCD_FILL:
@@ -502,20 +507,20 @@ int lcd_fifo_receiver(uint32_t message) {
 			y = multicore_fifo_pop_blocking_inline();
 			width = multicore_fifo_pop_blocking_inline();
 			height = multicore_fifo_pop_blocking_inline();
-			lcd_fill((u16)fg, (int)x, (int)y, (int)width, (int)height);
+			lcd_fill_local((u16)fg, (int)x, (int)y, (int)width, (int)height);
 			return 1;
 
 		case FIFO_LCD_CLEAR:
-			lcd_clear();
+			lcd_clear_local();
 			return 1;
 
 		case FIFO_LCD_BUFEN:
 			x = multicore_fifo_pop_blocking_inline();
-			lcd_buffer_enable(x);
+			lcd_buffer_enable_local(x);
 			return 1;
 
 		case FIFO_LCD_BUFBLIT:
-			lcd_buffer_blit();
+			lcd_buffer_blit_local();
 			return 1;
 
 		case FIFO_LCD_CHAR:
@@ -524,7 +529,7 @@ int lcd_fifo_receiver(uint32_t message) {
 			fg = multicore_fifo_pop_blocking_inline();
 			bg = multicore_fifo_pop_blocking_inline();
 			c = multicore_fifo_pop_blocking_inline();
-			lcd_draw_char((int)x, (int)y, (u16)fg, (u16)bg, (char)c);
+			lcd_draw_char_local((int)x, (int)y, (u16)fg, (u16)bg, (char)c);
 			return 1;
 
 		case FIFO_LCD_TEXT:
@@ -533,80 +538,16 @@ int lcd_fifo_receiver(uint32_t message) {
 			fg = multicore_fifo_pop_blocking_inline();
 			bg = multicore_fifo_pop_blocking_inline();
 			width = multicore_fifo_pop_string(&text);
-			lcd_draw_text((int)x, (int)y, (u16)fg, (u16)bg, text, width);
+			lcd_draw_text_local((int)x, (int)y, (u16)fg, (u16)bg, text, width);
 			free(text);
 			return 1;
 
 		case FIFO_LCD_SCROLL:
 			height = multicore_fifo_pop_blocking_inline();
-			lcd_scroll((int)height);
+			lcd_scroll_local((int)height);
 			return 1;
 
 		default:
 			return 0;
 	}
-}
-
-void lcd_fifo_draw(u16* pixels, int x, int y, int width, int height) {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_DRAW);
-	multicore_fifo_push_blocking_inline((uint32_t)pixels);
-	multicore_fifo_push_blocking_inline(x);
-	multicore_fifo_push_blocking_inline(y);
-	multicore_fifo_push_blocking_inline(width);
-	multicore_fifo_push_blocking_inline(height);
-}
-
-void lcd_fifo_fill(u16 color, int x, int y, int width, int height) {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_FILL);
-	multicore_fifo_push_blocking_inline(color);
-	multicore_fifo_push_blocking_inline(x);
-	multicore_fifo_push_blocking_inline(y);
-	multicore_fifo_push_blocking_inline(width);
-	multicore_fifo_push_blocking_inline(height);
-}
-
-void lcd_fifo_clear() {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_CLEAR);
-}
-
-void lcd_fifo_buffer_enable(bool enable) {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_BUFEN);
-	multicore_fifo_push_blocking_inline(enable);
-}
-
-void lcd_fifo_buffer_blit() {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_BUFBLIT);
-}
-
-void lcd_fifo_draw_char(int x, int y, u16 fg, u16 bg, char c) {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_CHAR);
-	multicore_fifo_push_blocking_inline(x);
-	multicore_fifo_push_blocking_inline(y);
-	multicore_fifo_push_blocking_inline(fg);
-	multicore_fifo_push_blocking_inline(bg);
-	multicore_fifo_push_blocking_inline(c);
-}
-
-void lcd_fifo_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_TEXT);
-	multicore_fifo_push_blocking_inline(x);
-	multicore_fifo_push_blocking_inline(y);
-	multicore_fifo_push_blocking_inline(fg);
-	multicore_fifo_push_blocking_inline(bg);
-	multicore_fifo_push_string(text, len);
-}
-
-void lcd_fifo_printf(int x, int y, u16 fg, u16 bg, const char* format, ...) {
-	char buffer[512];
-	va_list list;
-	va_start(list, format);
-	int result = vsnprintf(buffer, 512, format, list);
-	if (result > -1) {
-		lcd_fifo_draw_text(x, y, fg, bg, buffer, result);
-	}
-}
-
-void lcd_fifo_scroll(int lines) {
-	multicore_fifo_push_blocking_inline(FIFO_LCD_SCROLL);
-	multicore_fifo_push_blocking_inline(lines);
 }

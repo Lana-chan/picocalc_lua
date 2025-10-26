@@ -8,6 +8,8 @@
 #include "fs.h"
 
 static FATFS global_fs;
+static bool mounted = false;
+bool fs_needs_remount = false;
 
 #define SD_MISO   16
 #define SD_MOSI   19
@@ -35,11 +37,7 @@ static void sd_hotplug(uint gpio, uint32_t events) {
 			busy_wait_us(DEBOUNCE_US);
 			if (gpio_get(SD_DETECT) == 0) {
 				printf("\x1b[91mSD inserted, mounting...");
-				if (fs_mount()) {
-					printf("\x1b[92mOK!\x1b[m\n");
-				} else {
-					printf("Failed to mount!\x1b[m\n");
-				}
+				fs_needs_remount = true;
 			}
 		}
 		gpio_acknowledge_irq(SD_DETECT, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL);
@@ -63,11 +61,13 @@ void fs_init() {
 }
 
 int fs_mount() {
-	return f_mount(&global_fs, "", 1) == FR_OK;
+	if (!mounted) mounted = f_mount(&global_fs, "", 1) == FR_OK;
+	return mounted;
 }
 
 int fs_unmount() {
-	return f_unmount("") == FR_OK;
+	if (mounted) mounted = !(f_unmount("") == FR_OK);
+	return !mounted;
 }
 
 int fs_exists(const char* path) {

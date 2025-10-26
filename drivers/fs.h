@@ -1,5 +1,7 @@
 #pragma once
 
+extern bool fs_needs_remount;
+
 void fs_init();
 int fs_mount();
 int fs_unmount();

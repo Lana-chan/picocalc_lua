@@ -4,9 +4,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "pico/multicore.h"
 
 enum FIFO_CODES {
 	FIFO_LCD = 256,
+	FIFO_LCD_POINT,
 	FIFO_LCD_DRAW,
 	FIFO_LCD_FILL,
 	FIFO_LCD_CLEAR,
@@ -32,4 +34,4 @@ enum FIFO_CODES {
 void multicore_fifo_push_string(const char* string, size_t len);
 size_t multicore_fifo_pop_string(char** string);
 
-void multicore_main();
+void handle_multicore_fifo();

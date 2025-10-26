@@ -86,17 +86,17 @@ static int ansi_len_to_lcd_y(int len) {
 
 void term_scroll(int lines) {
 	//term_erase_line(0); // didn't work?
-	lcd_fifo_scroll(lines * font.glyph_height);
+	lcd_scroll(lines * font.glyph_height);
 }
 
 void term_clear() {
 	ansi.x = ansi.y = ansi.len = 0;
-	lcd_fifo_clear();
-	lcd_fifo_scroll(0);
+	lcd_clear();
+	lcd_scroll(0);
 }
 
 void term_erase_line(int y) {
-	lcd_fifo_fill(ansi.bg, 0, y * font.glyph_height, 320, font.glyph_height);
+	lcd_fill(ansi.bg, 0, y * font.glyph_height, 320, font.glyph_height);
 }
 
 static void draw_cursor() {
@@ -104,14 +104,14 @@ static void draw_cursor() {
 		ansi.cx = ansi_len_to_lcd_x(ansi.len);
 		ansi.cy = ansi_len_to_lcd_y(ansi.len);
 		// this used to be an underline but without a buffer of what it draws over, it causes too many artifacts
-		lcd_fifo_fill(ansi.fg, ansi.cx, ansi.cy, 1, font.glyph_height - 1);
+		lcd_fill(ansi.fg, ansi.cx, ansi.cy, 1, font.glyph_height - 1);
 		ansi.cursor_visible = true;
 	}
 }
 
 static void erase_cursor() {
 	if (ansi.cursor_enabled && ansi.cursor_visible) {
-		lcd_fifo_fill(ansi.bg, ansi.cx, ansi.cy, 1, font.glyph_height - 1);
+		lcd_fill(ansi.bg, ansi.cx, ansi.cy, 1, font.glyph_height - 1);
 		ansi.cursor_visible = false;
 	}
 }
@@ -173,7 +173,7 @@ void term_set_bg(u16 color) {
 }
 
 void term_write(const char* text, size_t len) {
-	lcd_fifo_draw_text(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, text, len);
+	lcd_draw_text(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, text, len);
 	ansi.x += (len >= font.term_width ? font.term_width : len);
 }
 
@@ -187,7 +187,7 @@ void term_blit(const char* text, const char* fg, const char* bg) {
 		if (*lbg >= '0' && *lbg <= '9') pbg = palette[*lbg - '0'];
 		else if (*lbg >= 'a' && *lbg <= 'f') pbg = palette[*lbg - 'a' + 10];
 		else if (*lbg >= 'A' && *lbg <= 'F') pbg = palette[*lbg - 'A' + 10];
-		lcd_fifo_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, pfg, pbg, *text);
+		lcd_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, pfg, pbg, *text);
 		ansi.x += 1;
 		if (ansi.x > font.term_width) return;
 		text ++;
@@ -204,10 +204,10 @@ static void out_char(char c) {
 	} else if (c == '\b') ansi.x -= 1;
 	//else if (c == '\r') ansi.x = 0;
 	else if (c == '\t') {
-		lcd_fifo_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, ' ');
+		lcd_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, ' ');
 		ansi.x += 1;
 	} else if (c >= 32 && c < 127) {
-		lcd_fifo_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, c);
+		lcd_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, c);
 		ansi.x += 1;
 	}
 	if (ansi.x >= font.term_width) {
@@ -312,15 +312,15 @@ stdio_driver_t stdio_picocalc = {
 static void term_erase_input(int size) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		lcd_fifo_fill(ansi.bg, x, y, font.glyph_width, font.glyph_height);
+		lcd_fill(ansi.bg, x, y, font.glyph_width, font.glyph_height);
 	}
 }
 
 static void term_draw_input(char* buffer, int size, int cursor) {
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
-		if (i < size) lcd_fifo_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
-		else lcd_fifo_fill(ansi.bg, x, y, font.glyph_width, font.glyph_height);
+		if (i < size) lcd_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
+		else lcd_fill(ansi.bg, x, y, font.glyph_width, font.glyph_height);
 		//if (ansi.cursor_enabled && i == cursor) lcd_fifo_fill(ansi.fg, x, y + font.glyph_height - 3, font.glyph_width, 2);
 	}
 	if (ansi.y + (size + ansi.x) / font.term_width >= font.term_height) term_scroll(ansi.y + (size + ansi.x) / font.term_width - (font.term_height-1));

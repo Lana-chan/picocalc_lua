@@ -23,6 +23,7 @@ add_subdirectory(picolua-api)
 
 add_executable(picolua
 	picolua.c
+	corelua.c
 	${CMAKE_CURRENT_BINARY_DIR}/version.c
 	#lua_wrapper.c
 	#fs_wrapper.c
