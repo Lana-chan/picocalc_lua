@@ -14,7 +14,7 @@ void handle_multicore_fifo() {
 		if (draw_fifo_receiver(packet)) break;
 	}
 
-	//multicore_fifo_clear_irq();
+	multicore_fifo_clear_irq();
 }
 
 void multicore_fifo_push_string(const char* source, size_t len) {
@@ -31,4 +31,11 @@ size_t multicore_fifo_pop_string(char** string) {
 	size_t len = multicore_fifo_pop_blocking_inline();
 	*string = (char*)multicore_fifo_pop_blocking_inline();
 	return len;
+}
+
+void multicore_init() {
+	multicore_fifo_drain();
+	multicore_fifo_clear_irq();
+	irq_set_exclusive_handler(SIO_FIFO_IRQ_NUM(0), handle_multicore_fifo);
+	irq_set_enabled(SIO_FIFO_IRQ_NUM(0), true);
 }

@@ -79,6 +79,9 @@ static int lcd_write_data(u8* buf, int len) {
 
 static void lcd_direct_draw(u16* pixels, int x, int y, int width, int height) {
 	y %= MEM_HEIGHT;
+	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
+	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
+	height = (height < 0 ? 0 : (y + height >= MEM_HEIGHT ? MEM_HEIGHT - y : height));
 	lcd_set_region(x, y, x + width - 1, y + height - 1, REGION_WRITE);
 
 	//lcd_write_data((u8*) pixels, width * height * 2);
@@ -90,10 +93,9 @@ static void lcd_direct_draw(u16* pixels, int x, int y, int width, int height) {
 
 static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
 	y %= MEM_HEIGHT;
-
 	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
-	width = (width < 0 ? 0 : (x + width - 1 >= LCD_WIDTH ? LCD_WIDTH - x - 1 : width));
-
+	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
+	height = (height < 0 ? 0 : (y + height >= MEM_HEIGHT ? MEM_HEIGHT - y : height));
 	lcd_set_region(x, y, x + width - 1, y + height - 1, REGION_WRITE);
 
 	gpio_put(LCD_DC, 1);
@@ -124,6 +126,11 @@ static void lcd_direct_clear() {
 }
 
 static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
+	y %= LCD_HEIGHT;
+	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
+	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
+	height = (height < 0 ? 0 : (y + height >= LCD_HEIGHT ? LCD_HEIGHT - y : height));
+
 	int remain;
 	for (uint32_t iy = y * LCD_WIDTH; iy < (y + height) * LCD_WIDTH; iy += LCD_WIDTH) {
 		remain = width;
@@ -136,6 +143,11 @@ static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
 }
 
 static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
+	y %= LCD_HEIGHT;
+	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
+	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
+	height = (height < 0 ? 0 : (y + height >= LCD_HEIGHT ? LCD_HEIGHT - y : height));
+
 	u16 buf[10];
 	int remain;
 	for (int i = 0; i < 10; i++) buf[i] = color;
@@ -149,7 +161,8 @@ static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
 }
 
 static void lcd_buffer_point(u16 color, int x, int y) {
-	psram_write16(&psram_spi, (x + y * LCD_WIDTH)<<1, color);
+	if (x >= 0 && y >= 0 && x < LCD_WIDTH && y < LCD_HEIGHT)
+		psram_write16(&psram_spi, (x + y * LCD_WIDTH)<<1, color);
 }
 
 static void lcd_buffer_clear() {
@@ -491,6 +504,7 @@ int lcd_fifo_receiver(uint32_t message) {
 			x = multicore_fifo_pop_blocking_inline();
 			y = multicore_fifo_pop_blocking_inline();
 			lcd_point_local((u16)fg, (int)x, (int)y);
+			return 1;
 
 		case FIFO_LCD_DRAW:
 			fg = multicore_fifo_pop_blocking_inline();

@@ -34,4 +34,4 @@ enum FIFO_CODES {
 void multicore_fifo_push_string(const char* string, size_t len);
 size_t multicore_fifo_pop_string(char** string);
 
-void handle_multicore_fifo();
+void multicore_init();

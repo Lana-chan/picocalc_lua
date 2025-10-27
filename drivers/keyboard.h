@@ -177,13 +177,14 @@ typedef void (*keyboard_callback_t)(void);
 
 int keyboard_init();
 input_event_t keyboard_poll(bool peek);
-input_event_t keyboard_wait();
 input_event_t keyboard_wait_ex(bool nomod, bool onlypressed);
-char keyboard_getchar();
 void keyboard_set_key_available_callback(keyboard_callback_t callback);
 void keyboard_set_interrupt_callback(keyboard_callback_t callback);
 unsigned char keyboard_getstate(unsigned char code);
 bool keyboard_key_available();
 void keyboard_flush();
+
+#define keyboard_wait() keyboard_wait_ex(false, false)
+#define keyboard_getchar() keyboard_wait_ex(true, true).code
 
 int get_battery(bool* charging);

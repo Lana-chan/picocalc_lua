@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "multicore.h"
+#include "lcd.h"
 
 typedef u16 Color;
 
@@ -11,7 +12,6 @@ Color draw_color_add(Color c1, Color c2);
 Color draw_color_subtract(Color c1, Color c2);
 Color draw_color_mul(Color c, float factor);
 
-void draw_point_local(i32 x, i32 y, Color color);
 void draw_clear_local();
 void draw_rect_local(i32 x, i32 y, i32 width, i32 height, Color color);
 void draw_fill_rect_local(i32 x, i32 y, i32 width, i32 height, Color color);
@@ -30,12 +30,12 @@ void draw_blit(i32 x, i32 y, i32 source_x, i32 source_y, i32 width, i32 height, 
 void draw_blit_masked_flipped(i32 x, i32 y, i32 source_x, i32 source_y, i32 width, i32 height, Color mask, u8 flip, Color* source, i32 source_width, i32 source_height);
 
 static inline void draw_point(i32 x, i32 y, Color color) {
-	if (get_core_num() == 0) draw_point_local(x, y, color);
+	if (get_core_num() == 0) lcd_point_local(color, x, y);
 	else {
-		multicore_fifo_push_blocking_inline(FIFO_DRAW_POINT);
+		multicore_fifo_push_blocking_inline(FIFO_LCD_POINT);
+		multicore_fifo_push_blocking_inline(color);
 		multicore_fifo_push_blocking_inline(x);
 		multicore_fifo_push_blocking_inline(y);
-		multicore_fifo_push_blocking_inline(color);
 	}
 }
 

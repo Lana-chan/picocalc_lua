@@ -25,14 +25,9 @@ int main() {
 	keyboard_init();
 	stdio_picocalc_init(); 
 	fs_init();
-		
-	multicore_fifo_drain();
-	multicore_fifo_clear_irq();
+	multicore_init();
 
 	multicore_launch_core1(lua_main);
-	
-	irq_set_exclusive_handler(SIO_FIFO_IRQ_NUM(0), handle_multicore_fifo);
-	irq_set_enabled(SIO_FIFO_IRQ_NUM(0), true);
 
 	while (true) {
 		if (atomic_load(&fs_needs_remount) == true) {

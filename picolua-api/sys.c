@@ -25,7 +25,7 @@ uint32_t get_free_memory() {
 }
 
 uint32_t get_system_mhz() {
-	return clock_get_hz(clk_sys) / 1000000ull;
+	return frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS) / 1000ull;
 }
 
 bool set_system_mhz(uint32_t clk) {

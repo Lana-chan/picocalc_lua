@@ -196,14 +196,6 @@ input_event_t keyboard_wait_ex(bool nomod, bool onlypressed) {
 	return event;
 }
 
-input_event_t keyboard_wait() {
-	return keyboard_wait_ex(false, false);
-}
-
-char keyboard_getchar() {
-	return keyboard_wait_ex(true, true).code;
-}
-
 int keyboard_init() {
 	i2c_init(KBD_MOD, KBD_SPEED);
 	gpio_set_function(KBD_SCL, GPIO_FUNC_I2C);
