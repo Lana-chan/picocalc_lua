@@ -4,6 +4,7 @@
 
 #include "hardware/watchdog.h"
 #include "hardware/clocks.h"
+#include "hardware/spi.h"
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
 
@@ -13,6 +14,7 @@
 
 #include "modules.h"
 #include "../drivers/keyboard.h"
+#include "../drivers/fs.h"
 
 uint32_t get_total_memory() {
 	extern char __StackLimit, __bss_end__;
@@ -30,6 +32,16 @@ uint32_t get_system_mhz() {
 
 bool set_system_mhz(uint32_t clk) {
 	if (set_sys_clock_khz(clk * 1000ull, true)) {
+		clock_configure(
+			clk_peri,
+			0,                                                // No glitchless mux
+			CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, // System PLL on AUX mux
+			clk * 1000000ull,                               // Input frequency
+			clk * 1000000ull                                // Output (must be same as no divider)
+		);
+		spi_set_baudrate(spi1, clk * 500000ull);
+		fs_unmount();
+		fs_mount();
 		return true;
 	}
 	return false;
@@ -156,7 +168,8 @@ static int l_get_battery(lua_State* L) {
 
 static int l_get_clock(lua_State* L) {
 	lua_pushinteger(L, get_system_mhz());
-	return 1;
+	lua_pushinteger(L, spi_get_baudrate(spi1));
+	return 2;
 }
 
 static int l_set_clock(lua_State* L) {
@@ -181,6 +194,8 @@ int luaopen_sys(lua_State *L) {
 	};
 	
 	luaL_newlib(L, syslib_f);
+
+	//lua_pushcharconstant(L, "board", PICO_BOARD);
 	
 	return 1;
 }

@@ -19,8 +19,6 @@
 #include "corelua.h"
 
 int main() {
-	set_system_mhz(150);
-
 	lcd_init();
 	keyboard_init();
 	stdio_picocalc_init(); 
