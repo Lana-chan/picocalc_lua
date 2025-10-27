@@ -11,6 +11,7 @@
 #include "psram_spi.h"
 
 #include "lcd.h"
+#include "lcd_lut.h"
 #include "default_font.h"
 #include "fs.h"
 #include "../pico_fatfs/fatfs/ff.h"
@@ -28,6 +29,9 @@ void(*lcd_point_ptr) (u16,int,int);
 void(*lcd_clear_ptr) (void);
 psram_spi_inst_t psram_spi;
 psram_spi_inst_t* async_spi_inst;
+
+uint8_t* framebuffer;
+int framebuffer_mode;
 
 static int lcd_write_spi(void *buf, size_t len) {
 	return spi_write_blocking(spi1, buf, len);
@@ -77,11 +81,15 @@ static int lcd_write_data(u8* buf, int len) {
 	return lcd_write_spi(buf, len);
 }
 
+static inline void normalize_coords(int* x, int* y, int* width, int* height, int scrheight) {
+	*y %= scrheight;
+	*x = (*x < 0 ? 0 : (*x >= LCD_WIDTH ? LCD_WIDTH : *x));
+	*width = (*width < 0 ? 0 : (*x + *width >= LCD_WIDTH ? LCD_WIDTH - *x : *width));
+	*height = (*height < 0 ? 0 : (*y + *height >= scrheight ? scrheight - *y : *height));
+}
+
 static void lcd_direct_draw(u16* pixels, int x, int y, int width, int height) {
-	y %= MEM_HEIGHT;
-	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
-	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
-	height = (height < 0 ? 0 : (y + height >= MEM_HEIGHT ? MEM_HEIGHT - y : height));
+	normalize_coords(&x, &y, &width, &height, MEM_HEIGHT);
 	lcd_set_region(x, y, x + width - 1, y + height - 1, REGION_WRITE);
 
 	//lcd_write_data((u8*) pixels, width * height * 2);
@@ -92,10 +100,7 @@ static void lcd_direct_draw(u16* pixels, int x, int y, int width, int height) {
 }
 
 static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
-	y %= MEM_HEIGHT;
-	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
-	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
-	height = (height < 0 ? 0 : (y + height >= MEM_HEIGHT ? MEM_HEIGHT - y : height));
+	normalize_coords(&x, &y, &width, &height, MEM_HEIGHT);
 	lcd_set_region(x, y, x + width - 1, y + height - 1, REGION_WRITE);
 
 	gpio_put(LCD_DC, 1);
@@ -125,11 +130,8 @@ static void lcd_direct_clear() {
 	lcd_fill(0, 0, 0, LCD_WIDTH, MEM_HEIGHT);
 }
 
-static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
-	y %= LCD_HEIGHT;
-	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
-	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
-	height = (height < 0 ? 0 : (y + height >= LCD_HEIGHT ? LCD_HEIGHT - y : height));
+static void lcd_psram_draw(u16* pixels, int x, int y, int width, int height) {
+	normalize_coords(&x, &y, &width, &height, LCD_HEIGHT);
 
 	int remain;
 	for (uint32_t iy = y * LCD_WIDTH; iy < (y + height) * LCD_WIDTH; iy += LCD_WIDTH) {
@@ -142,11 +144,8 @@ static void lcd_buffer_draw(u16* pixels, int x, int y, int width, int height) {
 	}
 }
 
-static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
-	y %= LCD_HEIGHT;
-	x = (x < 0 ? 0 : (x >= LCD_WIDTH ? LCD_WIDTH : x));
-	width = (width < 0 ? 0 : (x + width >= LCD_WIDTH ? LCD_WIDTH - x : width));
-	height = (height < 0 ? 0 : (y + height >= LCD_HEIGHT ? LCD_HEIGHT - y : height));
+static void lcd_psram_fill(u16 color, int x, int y, int width, int height) {
+	normalize_coords(&x, &y, &width, &height, LCD_HEIGHT);
 
 	u16 buf[10];
 	int remain;
@@ -160,27 +159,65 @@ static void lcd_buffer_fill(u16 color, int x, int y, int width, int height) {
 	}
 }
 
-static void lcd_buffer_point(u16 color, int x, int y) {
+static void lcd_psram_point(u16 color, int x, int y) {
 	if (x >= 0 && y >= 0 && x < LCD_WIDTH && y < LCD_HEIGHT)
 		psram_write16(&psram_spi, (x + y * LCD_WIDTH)<<1, color);
 }
 
-static void lcd_buffer_clear() {
-	lcd_buffer_fill(0, 0, 0, LCD_WIDTH, LCD_HEIGHT);
+static void lcd_psram_clear() {
+	lcd_psram_fill(0, 0, 0, LCD_WIDTH, LCD_HEIGHT);
+}
+
+static void lcd_ram_draw(u16* pixels, int x, int y, int width, int height) {
+	normalize_coords(&x, &y, &width, &height, LCD_HEIGHT);
+
+	for (uint32_t iy = y * LCD_WIDTH; iy < (y + height) * LCD_WIDTH; iy += LCD_WIDTH) {
+		for (uint32_t ix = x; ix < (x + width); ix++) {
+			framebuffer[iy+ix] = lcd_to8[*pixels++];
+		}
+	}
+}
+
+static void lcd_ram_fill(u16 color, int x, int y, int width, int height) {
+	normalize_coords(&x, &y, &width, &height, LCD_HEIGHT);
+
+	for (uint32_t iy = y * LCD_WIDTH; iy < (y + height) * LCD_WIDTH; iy += LCD_WIDTH) {
+		memset(framebuffer + x + iy, lcd_to8[color], width);
+	}
+}
+
+static void lcd_ram_point(u16 color, int x, int y) {
+	if (x >= 0 && y >= 0 && x < LCD_WIDTH && y < LCD_HEIGHT)
+		framebuffer[(x + y * LCD_WIDTH)] = lcd_to8[color];
+}
+
+static void lcd_ram_clear() {
+	memset(framebuffer, 0, LCD_WIDTH * LCD_HEIGHT);
 }
 
 void lcd_buffer_blit_local() {
+	if (framebuffer_mode == LCD_BUFFERMODE_DIRECT) return;
+	
 	lcd_set_region(0, 0, 319, 319, REGION_WRITE);
 
 	u16 buf[LCD_WIDTH];
 	spi_set_format(spi1, 16, 0, 0, SPI_MSB_FIRST);
 	gpio_put(LCD_DC, 1);
 
-	for (int y = 0; y < LCD_HEIGHT * LCD_WIDTH; y += LCD_WIDTH) {
-		for (int x = 0; x < LCD_WIDTH; x+=10) {
-			psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(buf + x), 20);
+	if (framebuffer_mode == LCD_BUFFERMODE_PSRAM) {
+		for (int y = 0; y < LCD_HEIGHT * LCD_WIDTH; y += LCD_WIDTH) {
+			for (int x = 0; x < LCD_WIDTH; x+=10) {
+				psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(buf + x), 20);
+			}
+			spi_write16_blocking(spi1, buf, LCD_WIDTH);
 		}
-		spi_write16_blocking(spi1, buf, LCD_WIDTH);
+	} else if (framebuffer_mode == LCD_BUFFERMODE_RAM) {
+		for (int y = 0; y < LCD_HEIGHT * LCD_WIDTH; y += LCD_WIDTH) {
+			for (int x = 0; x < LCD_WIDTH; x++) {
+				buf[x] = lcd_to16[framebuffer[x + y]];
+			}
+			spi_write16_blocking(spi1, buf, LCD_WIDTH);
+		}
 	}
 
 	spi_set_format(spi1, 8, 0, 0, SPI_MSB_FIRST);
@@ -203,18 +240,43 @@ void lcd_clear_local() {
 	lcd_clear_ptr();
 }
 
-void lcd_buffer_enable_local(bool enable) {
-	if (enable) {
-		lcd_draw_ptr = &lcd_buffer_draw;
-		lcd_fill_ptr = &lcd_buffer_fill;
-		lcd_point_ptr = &lcd_buffer_point;
-		lcd_clear_ptr = &lcd_buffer_clear;
-	} else {
+bool lcd_buffer_enable_local(int mode) {
+	if (mode != LCD_BUFFERMODE_RAM) {
+		if (framebuffer) {
+			free(framebuffer);
+			framebuffer = NULL;
+		}
+	}
+
+	if (mode == LCD_BUFFERMODE_DIRECT) {
 		lcd_draw_ptr = &lcd_direct_draw;
 		lcd_fill_ptr = &lcd_direct_fill;
 		lcd_point_ptr = &lcd_direct_point;
 		lcd_clear_ptr = &lcd_direct_clear;
+		framebuffer_mode = mode;
+		return true;
+	} else if (mode == LCD_BUFFERMODE_PSRAM) {
+		lcd_draw_ptr = &lcd_psram_draw;
+		lcd_fill_ptr = &lcd_psram_fill;
+		lcd_point_ptr = &lcd_psram_point;
+		lcd_clear_ptr = &lcd_psram_clear;
+		framebuffer_mode = mode;
+		return true;
+	} else if (mode == LCD_BUFFERMODE_RAM) {
+		if (!framebuffer) {
+			framebuffer = malloc(LCD_WIDTH * LCD_HEIGHT);
+			if (framebuffer) {
+				lcd_draw_ptr = &lcd_ram_draw;
+				lcd_fill_ptr = &lcd_ram_fill;
+				lcd_point_ptr = &lcd_ram_point;
+				lcd_clear_ptr = &lcd_ram_clear;
+				framebuffer_mode = mode;
+				return true;
+			}
+		}
 	}
+
+	return false;
 }
 
 void lcd_scroll_local(int lines) {
@@ -462,7 +524,7 @@ void lcd_init() {
 	gpio_put(LCD_CS, 1);
 
 	psram_spi = psram_spi_init(pio0, -1);
-	lcd_buffer_enable(false);
+	lcd_buffer_enable(0);
 
 	lcd_load_font(NULL);
 
@@ -530,7 +592,7 @@ int lcd_fifo_receiver(uint32_t message) {
 
 		case FIFO_LCD_BUFEN:
 			x = multicore_fifo_pop_blocking_inline();
-			lcd_buffer_enable_local(x);
+			multicore_fifo_push_blocking_inline(lcd_buffer_enable_local(x));
 			return 1;
 
 		case FIFO_LCD_BUFBLIT:

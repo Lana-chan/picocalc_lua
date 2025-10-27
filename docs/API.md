@@ -72,7 +72,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`polygon(points, color)`](#polygonpoints-color)
 	- [`polygonFill(points, color)`](#polygonfillpoints-color)
 	- [`triangle(c1, x1, y1, c2, x2, y2, c3, x3, y3)`](#trianglec1-x1-y1-c2-x2-y2-c3-x3-y3)
-	- [`enableBuffer(enable)`](#enablebufferenable)
+	- [`enableBuffer(mode, [dirty])`](#enablebuffermode-dirty)
 	- [`blitBuffer()`](#blitbuffer)
 - [`colors` - Color functions and constants](#colors---color-functions-and-constants)
 	- [`fromRGB(R, G, B)`](#fromrgbr-g-b)
@@ -140,6 +140,7 @@ Gets the current CPU clock speed
 
 **Returns**
 1. `number` - Current clock speed in MHz
+2. `number` - Current SPI baudrate
 
 ## `setClock(speed)`
 Sets the CPU clock speed
@@ -604,11 +605,19 @@ Draw a triangle with each vertex shaded by a different color
 2. `x3 : number` - The horizontal position of the third vertex in pixels
 3. `y3 : number` - The vertical position of the third vertex in pixels
 
-## `enableBuffer(enable)`
-Controls whether or not to enable the framebuffer. While the framebuffer is enabled, no drawing functions will be reflected on the screen until the framebuffer is blitted, or the framebuffer is disabled
+## `enableBuffer(mode, [dirty])`
+Enables or disables a framebuffer mode. While the framebuffer is enabled, no drawing functions will be reflected on the screen until the framebuffer is blitted, or the framebuffer is disabled. Valid mode values:
+- `0`: Direct LCD drawing (disable framebuffer)
+- `1`: PSRAM, slower access but does not use system RAM
+- `2`: RAM, faster than PSRAM but with lower color depth (RGB565 is converted to RGB233 automatically) and uses ~100KB of RAM
+
+The RAM framebuffer is dynamically allocated when enabled and freed when disabled.
 
 **Parameters**
-1. `enable : boolean` - Whether or not to enable the framebuffer
+1. `mode : integer | boolean` - The framebuffer mode to enable, boolean values are accepted for enabling PSRAM (legacy)
+
+**Returns**
+1. `boolean` - Whether or not setting the mode was successful
 
 ## `blitBuffer()`
 Blit the contents of the framebuffer to the screen

@@ -87,7 +87,7 @@ void lua_main() {
 	while (1) {
 		char line[256];
 		keyboard_flush();
-		lcd_buffer_enable(false);
+		lcd_buffer_enable(0);
 		term_set_blinking_cursor(true);
 		int size = term_readline(PROMPT, line, 256, &term_history);
 		term_set_blinking_cursor(false);
@@ -116,6 +116,9 @@ void lua_main() {
 				printf("\x1b[m");
 			}
 		}
+		
+		lua_getglobal(L, "collectgarbage");
+		lua_pcall(L, 0, 1, 0);
 		keyboard_set_interrupt_callback(NULL);
 	}
 

@@ -26,9 +26,20 @@ static int l_draw_clear(lua_State* L) {
 }
 
 static int l_draw_buffer_enable(lua_State* L) {
-	bool enable = lua_toboolean(L, 1);
-	lcd_buffer_enable(enable);
-	return 0;
+	int mode = 0;
+	if (lua_type(L, 1) == LUA_TBOOLEAN) {
+		if (lua_toboolean(L, 1)) mode = 1;
+	} else {
+		mode = luaL_checkinteger(L, 1);
+	}
+
+	if (mode == LCD_BUFFERMODE_RAM) {
+		lua_getglobal(L, "collectgarbage");
+		lua_pcall(L, 0, 1, 0);
+	}
+
+	lua_pushboolean(L, lcd_buffer_enable(mode));
+	return 1;
 }
 
 static int l_draw_buffer_blit(lua_State* L) {

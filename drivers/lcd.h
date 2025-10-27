@@ -7,7 +7,11 @@
 
 #define LCD_WIDTH 320
 #define LCD_HEIGHT 320
-#define MEM_HEIGHT 480 
+#define MEM_HEIGHT 480
+
+#define LCD_BUFFERMODE_DIRECT 0
+#define LCD_BUFFERMODE_PSRAM 1
+#define LCD_BUFFERMODE_RAM 2
 
 #define RED(a)      ((((a) & 0xf800) >> 11) << 3)
 #define GREEN(a)    ((((a) & 0x07e0) >> 5) << 2)
@@ -21,7 +25,7 @@ void lcd_point_local(u16 color, int x, int y);
 void lcd_draw_local(u16* pixels, int x, int y, int width, int height);
 void lcd_fill_local(u16 color, int x, int y, int width, int height);
 void lcd_clear_local();
-void lcd_buffer_enable_local(bool enable);
+bool lcd_buffer_enable_local(int mode);
 void lcd_buffer_blit_local();
 void lcd_draw_char_local(int x, int y, u16 fg, u16 bg, char c);
 void lcd_draw_text_local(int x, int y, u16 fg, u16 bg, const char* text, size_t len);
@@ -93,11 +97,12 @@ static inline void lcd_clear() {
 	}
 }
 
-static inline void lcd_buffer_enable(bool enable) {
-	if (get_core_num() == 0) lcd_buffer_enable_local(enable);
+static inline bool lcd_buffer_enable(int mode) {
+	if (get_core_num() == 0) return lcd_buffer_enable_local(mode);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_LCD_BUFEN);
-		multicore_fifo_push_blocking_inline(enable);
+		multicore_fifo_push_blocking_inline(mode);
+		return multicore_fifo_pop_blocking_inline();
 	}
 }
 
