@@ -6,7 +6,8 @@ A Lua interpreter for PicoCalc. It contains a REPL, basic API to draw graphics, 
 * Keyboard and lcd drivers based on https://github.com/hisptoot/picocalc_luckfox_lyra
 * Font comes from https://polyducks.itch.io/kitchen-sink-textmode-font
 * Filesystem based on https://github.com/elehobica/pico_fatfs.git
-* Editor taken from https://github.com/cc-tweaked/CC-Tweaked
+* Lua-based Editor taken from https://github.com/cc-tweaked/CC-Tweaked
+* C-based Editor taken from https://github.com/snaptoken/kilo-src
 
 ## Dependencies
 

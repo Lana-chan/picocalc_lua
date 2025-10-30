@@ -19,6 +19,7 @@ typedef struct {
 
 void stdio_picocalc_init();
 void stdio_picocalc_deinit();
+void stdio_picocalc_out_chars(const char *buf, int length);
 void term_clear();
 void term_erase_line(int y);
 int term_get_width();

@@ -214,6 +214,6 @@ int get_battery(bool* charging) {
 	int result = 0;
 	if (!i2c_kbd_read((unsigned char*)&result, 2)) return -1;
 	result >>= 8;
-	*charging = (result & 1<<7) != 0;
+	if (charging) *charging = (result & 1<<7) != 0;
 	return result & ~(1<<7);
 }

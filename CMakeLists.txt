@@ -18,6 +18,7 @@ pico_sdk_init()
 add_subdirectory(submodules/lua-5.4.8)
 add_subdirectory(submodules/pico_fatfs)
 add_subdirectory(submodules/rp2040-psram)
+add_subdirectory(submodules/kilo)
 add_subdirectory(drivers)
 add_subdirectory(picolua-api)
 
@@ -49,6 +50,7 @@ target_link_libraries(picolua
 	lua 
 	drivers
 	pico_fatfs
+	kilo
 	picolua-api
 )
 

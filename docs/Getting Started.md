@@ -33,12 +33,22 @@ Once you are ready to write your own progams, see the [API reference](API.md) fo
 
 ## Editor
 
-The editor currently bundled in the SD files was taken and slightly modified from the [CC: Tweaked](https://github.com/cc-tweaked/CC-Tweaked) project. Due to the nature of the editor, it uses about 200kB of memory and is therefore only usable in RP2350 boards due to the lack of memory available in RP2040 boards.
-
-If you have the `main.lua` from `sd_files` included in your SD card, you should see "Editor loaded" on your terminal at boot. In that case, you can invoke the editor like so:
+PicoCalc Lua comes with an editor based on [kilo](https://github.com/snaptoken/kilo-src) built into the firmware. To launch it, call the `edit` command:
 
 ```lua
-edit("filename")
+edit([filename])
+```
+
+The `filename` parameter is optional, and if omitted, the editor will prompt you for a filename before the first time saving. A new file will be created if a filename that doesn't exist is provided by either manner.
+
+### ComputerCraft editor
+
+Previously PicoCalc Lua relied on bundling an editor orignally made for the [CC: Tweaked](https://github.com/cc-tweaked/CC-Tweaked) project due to its ease of portability for being written in Lua. However, this editor consumes too much RAM to be used on RP2040 devices and is only suitable for RP2350.
+
+The `main.lua` startup file included in `sd_files` has a commented out invocation to load this editor under the `ccedit` global function. If you enable it, you should see "Editor loaded" on your terminal at boot. In that case, you can start the editor like so:
+
+```lua
+ccedit("filename")
 ```
 
 where `"filename"` is a valid path in your SD card. In case the file doesn't exist, a new one will be created at that path.

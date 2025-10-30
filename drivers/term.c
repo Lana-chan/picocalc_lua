@@ -36,22 +36,22 @@ void stdio_picocalc_deinit() {
 }
 
 const static unsigned short palette[16] = {
-	RGB(0, 0, 0),       // 0 black
-	RGB(187, 0, 0),     // 1 red
-	RGB(0, 187, 0),     // 2 green
-	RGB(187, 187, 0),   // 3 yellow
-	RGB(0, 0, 187),     // 4 blue
-	RGB(187, 0, 187),   // 5 magenta
-	RGB(0, 187, 187),   // 6 cyan
-	RGB(187, 187, 187), // 7 white
+	RGB(  0,   0,   0), // 0 black
+	RGB(194,  54,  33), // 1 red
+	RGB( 37, 188,  36), // 2 green
+	RGB(173, 173,  39), // 3 yellow
+	RGB( 73,  46, 225), // 4 blue
+	RGB(211,  56, 211), // 5 magenta
+	RGB( 51, 187, 200), // 6 cyan
+	RGB(203, 204, 205), // 7 white
 	// high intensity
-	RGB(85, 85, 85),    // 8 black
-	RGB(255, 85, 85),   // 9 red
-	RGB(85, 255, 85),   // a green
-	RGB(255, 255, 85),  // b yellow
-	RGB(85, 85, 255),   // c blue
-	RGB(255, 85, 255),  // d magenta
-	RGB(85, 255, 255),  // e cyan
+	RGB( 85,  85,  85), // 8 black
+	RGB(255,  85,  85), // 9 red
+	RGB( 85, 255,  85), // a green
+	RGB(255, 255,  85), // b yellow
+	RGB(85,   85, 255), // c blue
+	RGB(255,  85, 255), // d magenta
+	RGB( 85, 255, 255), // e cyan
 	RGB(255, 255, 255), // f white
 };
 
@@ -70,10 +70,20 @@ typedef struct {
 	bool cursor_enabled;
 	bool cursor_visible;
 	bool cursor_manual;
+	bool c_inverse;
+	bool c_bold;
 } ansi_t;
 
 static ansi_t ansi = {
-	.state=AnsiNone, .x=0, .y=0, .fg=palette[DEFAULT_FG], .bg=palette[DEFAULT_BG], .stack={0}, .stack_size=0, .cursor_enabled=false
+	.state=AnsiNone,
+	.x=0, .y=0,
+	.fg=palette[DEFAULT_FG],
+	.bg=palette[DEFAULT_BG],
+	.stack={0},
+	.stack_size=0,
+	.cursor_enabled=false,
+	.c_inverse=false,
+	.c_bold=false,
 };
 
 static int ansi_len_to_lcd_x(int len) {
@@ -96,7 +106,17 @@ void term_clear() {
 }
 
 void term_erase_line(int y) {
-	lcd_fill(ansi.bg, 0, y * font.glyph_height, 320, font.glyph_height);
+	lcd_fill(ansi.bg, 0, y * font.glyph_height, LCD_WIDTH, font.glyph_height);
+}
+
+void term_erase_from_cursor() {
+	lcd_fill(
+		ansi.bg,
+		ansi.x * font.glyph_width,
+		ansi.y * font.glyph_height,
+		LCD_WIDTH - ansi.x * font.glyph_width,
+		font.glyph_height
+	);
 }
 
 static void draw_cursor() {
@@ -150,6 +170,14 @@ int term_get_y() {
 	return ansi.y;
 }
 
+int term_get_width() {
+	return font.term_width;
+}
+
+int term_get_height() {
+	return font.term_height;
+}
+
 void term_set_pos(int x, int y) {
 	ansi.cursor_manual = true;
 	erase_cursor();
@@ -196,20 +224,7 @@ void term_blit(const char* text, const char* fg, const char* bg) {
 	}
 }
 
-static void out_char(char c) {
-	if (c == '\n') {
-		ansi.x = 0;
-		ansi.y += 1;
-		term_erase_line(ansi.y);
-	} else if (c == '\b') ansi.x -= 1;
-	//else if (c == '\r') ansi.x = 0;
-	else if (c == '\t') {
-		lcd_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, ' ');
-		ansi.x += 1;
-	} else if (c >= 32 && c < 127) {
-		lcd_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, c);
-		ansi.x += 1;
-	}
+static inline void should_scroll() {
 	if (ansi.x >= font.term_width) {
 		ansi.x = 0;
 		ansi.y += 1;
@@ -220,12 +235,39 @@ static void out_char(char c) {
 	}
 }
 
-static void stdio_picocalc_out_chars(const char *buf, int length) {
+static void out_char(char c) {
+	u16 fg, bg;
+	if (ansi.c_inverse) {
+		fg = ansi.bg;
+		bg = ansi.fg;
+	} else {
+		fg = ansi.fg;
+		bg = ansi.bg;
+	}
+	
+	if (c == '\n') {
+		ansi.x = 0;
+		ansi.y += 1;
+		term_erase_line(ansi.y);
+		should_scroll();
+	} else if (c == '\b') ansi.x -= 1;
+	//else if (c == '\r') ansi.x = 0;
+	else {
+		if (c == '\t') c = ' ';
+		if (c >= 32 && c < 127) {
+			should_scroll();
+			lcd_draw_char(ansi.x * font.glyph_width, ansi.y * font.glyph_height, fg, bg, c);
+			ansi.x += 1;
+		}
+	}
+}
+
+void stdio_picocalc_out_chars(const char *buf, int length) {
 	while (length > 0) {
 		if (ansi.state == AnsiNone) {
-			if (*buf == 27) ansi.state = AnsiEscape;
+			if (*buf == 27 || *buf == '\x1b') ansi.state = AnsiEscape;
 			else if (*buf == '\t') {
-				out_char(*buf); out_char(*buf); out_char(*buf); out_char(*buf);
+				out_char(*buf); out_char(*buf);
 			}
 			else out_char(*buf);
 		} else if (ansi.state == AnsiEscape) {
@@ -234,7 +276,7 @@ static void stdio_picocalc_out_chars(const char *buf, int length) {
 			ansi.stack_size = 0;
 		} else if (ansi.state == AnsiBracket) {
 			ansi.stack[ansi.stack_size] = 0;
-			int a = 0, b = 0, semi_column = 0, i = 0;
+			int a = 0, b = 0, semicolon = 0;
 			//lcd_printf(0, 39 * 8, 0xffff, 0, "buf = '%c' stack = %s         ", *buf, ansi.stack);
 			//keyboard_wait();
 			switch (*buf) {
@@ -243,36 +285,66 @@ static void stdio_picocalc_out_chars(const char *buf, int length) {
 				case 'C': ansi.x += atoi(ansi.stack); ansi.state = AnsiNone; break; // cursor right
 				case 'D': ansi.x -= atoi(ansi.stack); ansi.state = AnsiNone; break; // cursor left
 				case 'J': term_clear(); ansi.state = AnsiNone; break; // erase display
+				case 'K':	term_erase_from_cursor(); ansi.state = AnsiNone; break;
 				case 'm':
-					if (ansi.stack_size == 0 || ansi.stack[0] == '0') {
+					if (ansi.stack_size == 0) {
 						ansi.fg = palette[DEFAULT_FG];
 						ansi.bg = palette[DEFAULT_BG];
+						ansi.c_inverse = false;
+						ansi.c_bold = false;
 					} else {
-						i = 0;
-						// this is all just kinda bad. makes me feel bad.
-						while (i < ansi.stack_size-1) {
-							if (i < ansi.stack_size-2 && ansi.stack[i] == '1' && ansi.stack[i+1] == '0') {
-								if (ansi.stack[i+2] >= '0' && ansi.stack[i+2] <= '7') { ansi.bg = palette[ansi.stack[i+2] - '0' + 8]; i+=2; }
-							} else {
-								a = ansi.stack[i+1] - '0';
-								if (a >= 0 && a <= 7) {
-									if (ansi.stack[i] == '3') { ansi.fg = palette[a]; i++; }
-									else if (ansi.stack[i] == '4') { ansi.bg = palette[a]; i++; }
-									else if (ansi.stack[i] == '9') { ansi.fg = palette[a + 8]; i++; }
-								}
+						while (semicolon <= ansi.stack_size-1) {
+							a = atoi(ansi.stack + semicolon);
+							b = a % 10;
+							if (a == 0) { // reset all
+								ansi.fg = palette[DEFAULT_FG];
+								ansi.bg = palette[DEFAULT_BG];
+								ansi.c_inverse = false;
+								ansi.c_bold = false;
 							}
-							i++;
+							else if (a == 7)  ansi.c_inverse = true;
+							else if (a == 27) ansi.c_inverse = false;
+							else if (a == 1)  ansi.c_bold = true;
+							else if (a == 22) ansi.c_bold = false;
+							else if (a >= 30 && a <= 39) { // dim foreground
+								if (b == 9) ansi.fg = palette[DEFAULT_FG];
+								else if (b <= 7) ansi.fg = palette[b + ansi.c_bold * 8];
+							}
+							else if (a >= 40 && a <= 49) { // dim background
+								if (b == 9) ansi.bg = palette[DEFAULT_BG];
+								else if (b <= 7) ansi.bg = palette[b + ansi.c_bold * 8];
+							}
+							else if (a >= 90 && a <= 97) { // bright foreground
+								ansi.fg = palette[b + 8];
+							}
+							else if (a >= 100 && a <= 107) { // bright background
+								ansi.bg = palette[b + 8];
+							}
+							while (semicolon < ansi.stack_size-1 && ansi.stack[semicolon] != ';') semicolon++;
+							semicolon++;
 						}
 					}
 					ansi.state = AnsiNone;
 					break;
 				case 'H':
-					a = atoi(ansi.stack);
-					while (semi_column < ansi.stack_size && ansi.stack[semi_column] != ';') semi_column++;
-					if (semi_column < ansi.stack_size) b = atoi(ansi.stack + semi_column);
-					if (a > 0 && b > 0) {
-						ansi.x = a - 1;
-						ansi.y = b - 1;
+					if (ansi.stack_size == 0) {
+						term_scroll(0);
+						term_set_pos(0, 0);
+					} else {
+						a = atoi(ansi.stack);
+						while (semicolon < ansi.stack_size && ansi.stack[semicolon] != ';') semicolon++;
+						if (semicolon < ansi.stack_size - 1) b = atoi(ansi.stack + semicolon + 1);
+						if (a > 0 && b > 0) {
+							term_set_pos(b-1, a-1);
+						}
+					}
+					ansi.state = AnsiNone;
+					break;
+				case 'l':
+				case 'h':
+					if (strncmp(ansi.stack, "?25", 3) == 0) {
+						if (*buf == 'l') term_set_blinking_cursor(false);
+						if (*buf == 'h') term_set_blinking_cursor(true);
 					}
 					ansi.state = AnsiNone;
 					break;

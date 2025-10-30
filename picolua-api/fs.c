@@ -12,29 +12,6 @@
 
 #define filehandle "FileHandle"
 
-static char* fs_error_strings[20] = {
-	"Succeeded",
-	"A hard error occurred in the low level disk I/O layer",
-	"Assertion failed",
-	"The physical drive cannot work",
-	"Could not find the file",
-	"Could not find the path",
-	"The path name format is invalid",
-	"Access denied due to prohibited access or directory full",
-	"Access denied due to prohibited access",
-	"The file/directory object is invalid",
-	"The physical drive is write protected",
-	"The logical drive number is invalid",
-	"The volume has no work area",
-	"There is no valid FAT volume",
-	"The f_mkfs() aborted due to any problem",
-	"Could not get a grant to access the volume within defined period",
-	"The operation is rejected according to the file sharing policy",
-	"LFN working buffer could not be allocated",
-	"Number of open files > FF_FS_LOCK",
-	"Given parameter is invalid",
-};
-
 static FIL* checkfile(lua_State *L) {
 	void *ud = luaL_checkudata(L, 1, filehandle);
 	luaL_argcheck(L, ud != NULL, 1, "'FileHandle' expected");
@@ -42,7 +19,7 @@ static FIL* checkfile(lua_State *L) {
 }
 
 //f_open - Open/Create a file
-static int fs_open(lua_State* L) {
+static int l_fs_open(lua_State* L) {
 	const TCHAR* path = luaL_checkstring(L, 1);
 
 	static const BYTE modes[] = {
@@ -77,7 +54,7 @@ static int fs_open(lua_State* L) {
 }
 
 //f_close - Close an open file
-static int fs_close(lua_State* L) {
+static int l_fs_close(lua_State* L) {
 	FIL* fp = checkfile(L);
 	if (fp) {
 		FRESULT result = f_close(fp);
@@ -87,7 +64,7 @@ static int fs_close(lua_State* L) {
 }
 
 //f_read - Read data from the file
-static int fs_read(lua_State* L) {
+static int l_fs_read(lua_State* L) {
 	FIL* fp = checkfile(L);
 	UINT to_read = luaL_optinteger(L, 2, 1); 
 	char* buffer = malloc(to_read);
@@ -105,7 +82,7 @@ static int fs_read(lua_State* L) {
 }
 
 // read entire file into a string
-static int fs_readAll(lua_State* L) {
+static int l_fs_readAll(lua_State* L) {
 	FIL* fp = checkfile(L);
 	UINT to_read = f_size(fp);
 	char* buffer = malloc(to_read);
@@ -123,35 +100,18 @@ static int fs_readAll(lua_State* L) {
 }
 
 // read until newline
-static int fs_readLine(lua_State* L) {
+static int l_fs_readLine(lua_State* L) {
 	FIL* fp = checkfile(L);
 
-	if (f_eof(fp)) {
+	UINT read;
+	char* buffer;
+	FRESULT res = fs_readline(fp, &buffer, &read);
+	if (res != FR_OK) return luaL_error(L, fs_error_strings[res]);
+
+	if (!buffer) {
 		lua_pushnil(L);
 		return 1;
-	}
-
-	FSIZE_t old_fptr = fp->fptr;
-
-	char c;
-	while (c != '\n' && !f_eof(fp)) {
-		FRESULT result = f_read(fp, &c, 1, NULL);
-		if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
-	}
-	// length of file from old_fptr until newline, minus newline
-	UINT to_read = fp->fptr - old_fptr;
-	if (c == '\n') to_read--;
-	UINT read;
-	f_lseek(fp, old_fptr);
-	
-	char* buffer = malloc(to_read);
-	FRESULT result = f_read(fp, buffer, to_read, &read);
-	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
-
-	// skip that newline
-	if (c == '\n') f_lseek(fp, fp->fptr + 1);
-
-	if (read > 0) {
+	} else if (read > 0) {
 		lua_pushlstring(L, buffer, read);
 	} else {
 		if (buffer) free(buffer);
@@ -162,13 +122,13 @@ static int fs_readLine(lua_State* L) {
 }
 
 //f_write - Write data to the file
-static int fs_write(lua_State* L) {
+static int l_fs_write(lua_State* L) {
 	FIL* fp = checkfile(L);
 	int to_write;
 	const char* buffer = luaL_checklstring(L, 2, &to_write);
 	UINT written;
 	
-	FRESULT result = f_write (fp, buffer, to_write, &written);
+	FRESULT result = f_write(fp, buffer, to_write, &written);
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
 
 	lua_pushinteger(L, written);
@@ -176,27 +136,21 @@ static int fs_write(lua_State* L) {
 }
 
 // write data and append newline
-static int fs_writeLine(lua_State* L) {
+static int l_fs_writeLine(lua_State* L) {
 	FIL* fp = checkfile(L);
 	int to_write;
 	const char* buffer = luaL_checklstring(L, 2, &to_write);
 	UINT written;
-	UINT nwritten;
-	
-	FRESULT result = f_write (fp, buffer, to_write, &written);
+
+	FRESULT result = fs_writeline(fp, buffer, to_write, &written);
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
 
-	const char n = '\n';
-
-	result = f_write (fp, &n, 1, &nwritten);
-	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
-
-	lua_pushinteger(L, written + nwritten);
+	lua_pushinteger(L, written);
 	return 1;
 }
 
 //f_lseek - Move read/write pointer, Expand size
-static int fs_seek(lua_State* L) {
+static int l_fs_seek(lua_State* L) {
 	static const int mode[] = {SEEK_SET, SEEK_CUR, SEEK_END};
 	static const char *const modenames[] = {"set", "cur", "end", NULL};
 	FIL* fp = checkfile(L);
@@ -233,7 +187,7 @@ static int fs_seek(lua_State* L) {
 }
 
 //f_sync - Flush cached data
-static int fs_flush(lua_State* L) {
+static int l_fs_flush(lua_State* L) {
 	FIL* fp = checkfile(L);
 	FRESULT result = f_sync(fp);
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
@@ -241,7 +195,7 @@ static int fs_flush(lua_State* L) {
 }
 
 //Directory Access
-static int fs_list(lua_State* L) {
+static int l_fs_list(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
 
 	DIR dp;
@@ -272,7 +226,7 @@ static int fs_list(lua_State* L) {
 
 //File and Directory Management
 //f_stat - Check existance of a file or sub-directory
-static int fs_getSize(lua_State* L) {
+static int l_fs_getSize(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
 	FILINFO info;
 	FRESULT result = f_stat(path, &info);
@@ -282,7 +236,7 @@ static int fs_getSize(lua_State* L) {
 }
 
 // is path a directory?
-static int fs_isDir(lua_State* L) {
+static int l_fs_isDir(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
 	FILINFO info;
 	FRESULT result = f_stat(path, &info);
@@ -292,7 +246,7 @@ static int fs_isDir(lua_State* L) {
 }
 
 // is path read only?
-static int fs_isReadOnly(lua_State* L) {
+static int l_fs_isReadOnly(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
 	FILINFO info;
 	FRESULT result = f_stat(path, &info);
@@ -309,7 +263,7 @@ static int l_fs_exists(lua_State* L) {
 }
 
 // return attributes table like cc
-static int fs_attribs(lua_State* L) {
+static int l_fs_attribs(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
 	FILINFO info;
 	FRESULT result = f_stat(path, &info);
@@ -329,7 +283,7 @@ static int fs_attribs(lua_State* L) {
 }
 
 //f_unlink - Remove a file or sub-directory
-static int fs_delete(lua_State* L) {
+static int l_fs_delete(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
 	FRESULT result = f_unlink(path);
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
@@ -337,7 +291,7 @@ static int fs_delete(lua_State* L) {
 }
 
 //f_rename - Rename/Move a file or sub-directory
-static int fs_rename(lua_State* L) {
+static int l_fs_rename(lua_State* L) {
 	const char* old_path = luaL_checkstring(L, 1);
 	const char* new_path = luaL_checkstring(L, 2);
 	FRESULT result = f_rename(old_path, new_path);
@@ -345,7 +299,7 @@ static int fs_rename(lua_State* L) {
 	return 0;
 }
 
-static int fs_copy(lua_State* L) {
+static int l_fs_copy(lua_State* L) {
 	const char* src_path = luaL_checkstring(L, 1);
 	const char* tgt_path = luaL_checkstring(L, 2);
 	FIL src, tgt;
@@ -372,7 +326,7 @@ static int fs_copy(lua_State* L) {
 }
 
 //f_mkdir - Create a sub-directory
-static int fs_mkdir(lua_State* L) {
+static int l_fs_mkdir(lua_State* L) {
 	const char* path = luaL_checkstring(L, 1);
 	FRESULT result = f_mkdir(path);
 	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
@@ -382,7 +336,7 @@ static int fs_mkdir(lua_State* L) {
 
 //Volume Management and System Configuration
 //f_getfree - Get free space on the volume
-static int fs_getfree(lua_State* L) {
+static int l_fs_getfree(lua_State* L) {
 	const char* path = luaL_optstring(L, 1, "");
 
 	FATFS *fs;
@@ -424,31 +378,31 @@ getCapacity(path)	Returns the capacity of the drive the path is located on.
 
 int luaopen_fs(lua_State *L) {
 	static const luaL_Reg fslib_m[] = {
-		{"read", fs_read},
-		{"readAll", fs_readAll},
-		{"readLine", fs_readLine},
-		{"seek", fs_seek},
-		{"write", fs_write},
-		{"writeLine", fs_writeLine},
-		{"flush", fs_flush},
-		{"close", fs_close},
-		{"__gc", fs_close}, // i think this is correct? i can't find much on __gc
+		{"read", l_fs_read},
+		{"readAll", l_fs_readAll},
+		{"readLine", l_fs_readLine},
+		{"seek", l_fs_seek},
+		{"write", l_fs_write},
+		{"writeLine", l_fs_writeLine},
+		{"flush", l_fs_flush},
+		{"close", l_fs_close},
+		{"__gc", l_fs_close}, // i think this is correct? i can't find much on __gc
 		{NULL, NULL}
 	};
 	
 	static const luaL_Reg fslib_f [] = {
-		{"open", fs_open},
-		{"list", fs_list},
-		{"makeDir", fs_mkdir},
-		{"getSize", fs_getSize},
-		{"isDir", fs_isDir},
-		{"isReadOnly", fs_isReadOnly},
-		{"attributes", fs_attribs},
+		{"open", l_fs_open},
+		{"list", l_fs_list},
+		{"makeDir", l_fs_mkdir},
+		{"getSize", l_fs_getSize},
+		{"isDir", l_fs_isDir},
+		{"isReadOnly", l_fs_isReadOnly},
+		{"attributes", l_fs_attribs},
 		{"exists", l_fs_exists},
-		{"delete", fs_delete},
-		{"move", fs_rename},
-		{"copy", fs_copy},
-		{"getFreeSpace", fs_getfree},
+		{"delete", l_fs_delete},
+		{"move", l_fs_rename},
+		{"copy", l_fs_copy},
+		{"getFreeSpace", l_fs_getfree},
 		{NULL, NULL}
 	};
 	

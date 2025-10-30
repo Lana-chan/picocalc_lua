@@ -1,2 +1,2 @@
-edit = loadfile("cc/edit.lua")
-if edit then print("Editor loaded") end
+--ccedit = loadfile("cc/edit.lua")
+--if ccedit then print("Editor loaded") end
