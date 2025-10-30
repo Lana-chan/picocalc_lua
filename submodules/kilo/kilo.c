@@ -651,7 +651,7 @@ void editorSave(bool temp) {
 
 	f_close(&fp);
 	free(buf);
-	E.dirty = 0;
+	if (!temp) E.dirty = 0;
 	editorSetStatusMessage("%d bytes written on disk", wlen);
 	return;
 }
@@ -1004,6 +1004,7 @@ void runProgram() {
 	keyboard_flush();
 	lua_getglobal(L_state, "collectgarbage");
 	lua_pcall(L_state, 0, 1, 0);
+	term_set_blinking_cursor(false);
 
 	int status = luaL_dofile(L_state, TEMP_FILENAME);
 
@@ -1017,6 +1018,7 @@ void runProgram() {
 	lua_pcall(L_state, 0, 1, 0);
 	
 	printf("\x1b[%d;%dHPress any key...", E.screenrows+2, 1);
+	keyboard_flush();
 	keyboard_wait_ex(false, true);
 }
 
