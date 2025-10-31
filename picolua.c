@@ -36,6 +36,10 @@ int main() {
 			}
 			atomic_store(&fs_needs_remount, false);
 		}
+		#if PICO_RP2040
 		sleep_ms(10);
+		#elif PICO_RP2350
+		busy_wait_ms(10);
+		#endif
 	}
 }
