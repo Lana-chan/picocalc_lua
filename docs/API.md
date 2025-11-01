@@ -263,13 +263,16 @@ Opens a file for usage
 1. `FileHandle` - Object for file operations, throws error if unable to open
 
 ## `list(path)`
-List the contents of a directory
+List the contents of a directory, throws error if unable to read or not a directory
 
 **Parameters**
 1. `path : string` - Path to search in
 
 **Returns**
-1. `table` - List of filenames inside directory, throws error if unable to read or not a directory
+1. `table` - Nested table of entries inside search path
+   1. `name : string` - Filename
+   2. `size : number` - File size
+   3. `isDir : boolean` - Whether entry is a directory
 
 ## `makeDir(path)`
 Create directory at specified path. Does not create recursively

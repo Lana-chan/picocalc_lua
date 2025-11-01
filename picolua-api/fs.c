@@ -71,13 +71,15 @@ static int l_fs_read(lua_State* L) {
 	UINT read;
 	
 	FRESULT result = f_read(fp, buffer, to_read, &read);
-	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
+	if (result != FR_OK) { free(buffer); return luaL_error(L, fs_error_strings[result]); }
 
 	if (read > 0) {
 		lua_pushlstring(L, buffer, read);
 	} else {
 		lua_pushnil(L);
 	}
+
+	free(buffer);
 	return 1;
 }
 
@@ -89,13 +91,15 @@ static int l_fs_readAll(lua_State* L) {
 	UINT read;
 	
 	FRESULT result = f_read(fp, buffer, to_read, &read);
-	if (result != FR_OK) return luaL_error(L, fs_error_strings[result]);
+	if (result != FR_OK) { free(buffer); return luaL_error(L, fs_error_strings[result]); }
 
 	if (read > 0) {
 		lua_pushlstring(L, buffer, read);
 	} else {
 		lua_pushnil(L);
 	}
+
+	free(buffer);
 	return 1;
 }
 
@@ -104,9 +108,9 @@ static int l_fs_readLine(lua_State* L) {
 	FIL* fp = checkfile(L);
 
 	UINT read;
-	char* buffer;
+	char* buffer = NULL;
 	FRESULT res = fs_readline(fp, &buffer, &read);
-	if (res != FR_OK) return luaL_error(L, fs_error_strings[res]);
+	if (res != FR_OK) { free(buffer); return luaL_error(L, fs_error_strings[res]); }
 
 	if (!buffer) {
 		lua_pushnil(L);
@@ -114,10 +118,10 @@ static int l_fs_readLine(lua_State* L) {
 	} else if (read > 0) {
 		lua_pushlstring(L, buffer, read);
 	} else {
-		if (buffer) free(buffer);
 		lua_pushlstring(L, "", 0);
 	}
-
+	
+	free(buffer);
 	return 1;
 }
 
@@ -210,10 +214,16 @@ static int l_fs_list(lua_State* L) {
 	}
 
 	lua_newtable(L);
-	int i;
+	int i = 0;
 	
 	while (result == FR_OK && fp.fname[0] != 0) {
+		lua_newtable(L);
 		lua_pushstring(L, fp.fname);
+		lua_setfield(L, -2, "name");
+		lua_pushinteger(L, fp.fsize);
+		lua_setfield(L, -2, "size");
+		lua_pushboolean(L, fp.fattrib & AM_DIR);
+		lua_setfield(L, -2, "isDir");
 		lua_rawseti(L, -2, ++i);
 		result = f_readdir(&dp, &fp);
 	}
