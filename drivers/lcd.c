@@ -14,6 +14,7 @@
 #include "lcd_lut.h"
 #include "default_font.h"
 #include "fs.h"
+#include "psram.h"
 #include "../pico_fatfs/fatfs/ff.h"
 
 #define LCD_SCK 10
@@ -27,8 +28,6 @@ void(*lcd_draw_ptr) (u16*,int,int,int,int);
 void(*lcd_fill_ptr) (u16,int,int,int,int);
 void(*lcd_point_ptr) (u16,int,int);
 void(*lcd_clear_ptr) (void);
-psram_spi_inst_t psram_spi;
-psram_spi_inst_t* async_spi_inst;
 
 uint8_t* framebuffer;
 int framebuffer_mode;
@@ -523,7 +522,6 @@ void lcd_init() {
 	//sleep_ms(120);
 	gpio_put(LCD_CS, 1);
 
-	psram_spi = psram_spi_init(pio0, -1);
 	lcd_buffer_enable(0);
 
 	lcd_load_font(NULL);
