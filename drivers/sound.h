@@ -8,23 +8,27 @@
 
 #define BITRATE  16000 // in hz
 #define BITDEPTH 65535 // 16bit samples
-#define CHANNELS 4
+#define CHANNELS 8
 
 typedef struct {
 	int len;
 	char* period;
 } period_t;
 
+enum AMP_MODE {
+	AMP_ADSR,
+	AMP_ARRAY,
+};
+
 typedef struct {
 	const int16_t *sample;
 	uint32_t sample_len;
 	uint32_t sample_pos;
-	uint32_t count;
-	uint32_t count_released;
-	const period_t* period;
-	uint8_t period_pos;
-	uint8_t period_mult;
+	uint16_t pos_increment;
+	uint32_t counter;
+	uint32_t counter_released;
 	float volume;
+	enum AMP_MODE amp_mode;
 	uint32_t attack_cnt;
 	uint32_t decay_cnt;
 	float sustain;
@@ -35,7 +39,8 @@ typedef struct {
 
 void sound_init();
 void sound_setclk();
-void sound_play(uint8_t ch, int note);
+void sound_playnote(uint8_t ch, int note);
+void sound_playpitch(uint8_t ch, float pitch);
 void sound_stop(uint8_t ch);
 void sound_off(uint8_t ch);
 void sound_setup(uint8_t ch, uint8_t wave, float volume, float attack, float decay, float sustain, float release);
