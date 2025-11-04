@@ -15,6 +15,7 @@
 #include "modules.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/fs.h"
+#include "../drivers/sound.h"
 
 uint32_t get_total_memory() {
 	extern char __StackLimit, __bss_end__;
@@ -40,6 +41,7 @@ bool set_system_mhz(uint32_t clk) {
 			clk * 1000000ull                                // Output (must be same as no divider)
 		);
 		spi_set_baudrate(spi1, clk * 500000ull);
+		sound_setclk();
 		fs_unmount();
 		fs_mount();
 		return true;

@@ -19,6 +19,7 @@ target_sources(drivers INTERFACE
 	term.c
 	draw.c
 	fs.c
+	sound.c
 	multicore.c
 )
 

@@ -54,6 +54,7 @@ target_link_libraries(picolua
 	pico_stdlib 
 	hardware_irq
 	hardware_pwm
+	hardware_gpio
 	hardware_i2c
 	hardware_spi
 	hardware_dma

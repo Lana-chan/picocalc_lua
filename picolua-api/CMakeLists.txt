@@ -17,6 +17,7 @@ target_sources(picolua-api INTERFACE
 	fs.c
 	draw.c
 	term.c
+	sound.c
 )
 
 target_link_libraries(picolua-api INTERFACE
