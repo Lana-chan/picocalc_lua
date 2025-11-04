@@ -18,19 +18,17 @@ typedef struct {
 typedef struct {
 	const int16_t *sample;
 	uint32_t sample_len;
-	uint32_t position;
-	uint32_t position_released;
+	uint32_t sample_pos;
+	uint32_t count;
+	uint32_t count_released;
 	const period_t* period;
 	uint8_t period_pos;
 	uint8_t period_mult;
 	float volume;
-	float attack;
-	float decay;
+	uint32_t attack_cnt;
+	uint32_t decay_cnt;
 	float sustain;
-	float release;
-	uint32_t attack_pos;
-	uint32_t decay_pos;
-	uint32_t release_pos;
+	uint32_t release_cnt;
 	bool repeat;
 	bool playing;
 } sound_channel_t;

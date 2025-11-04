@@ -39,16 +39,17 @@ static const period_t pitch_periods[] = { // c-0 thru b-0 - how much to advance 
 static int16_t sound_process(sound_channel_t* ch) {
 	float amp;
 
-	if (ch->position <= ch->attack_pos) {
-		amp = (float)ch->position / (float)ch->attack_pos;
-	} else if (ch->position <= ch->attack_pos + ch->decay_pos) {
-		amp = 1.0f - (float)(ch->position - ch->attack_pos) / (float)ch->decay_pos * (1.0f - ch->sustain);
-	} else if (ch->position_released > 0) {
-		if (ch->position >= ch->position_released + ch->release_pos) {
+	// ADSR calculation
+	if (ch->count <= ch->attack_cnt) {
+		amp = (float)ch->count / (float)ch->attack_cnt;
+	} else if (ch->count <= ch->attack_cnt + ch->decay_cnt) {
+		amp = 1.0f - (float)(ch->count - ch->attack_cnt) / (float)ch->decay_cnt * (1.0f - ch->sustain);
+	} else if (ch->count_released > 0) {
+		if (ch->count >= ch->count_released + ch->release_cnt) {
 			amp = 0;
 			ch->playing = false;
-		} else if (ch->position >= ch->position_released) {
-			amp = ch->sustain - (float)(ch->position - ch->position_released) / (float)ch->release_pos * ch->sustain;
+		} else if (ch->count >= ch->count_released) {
+			amp = ch->sustain - (float)(ch->count - ch->count_released) / (float)ch->release_cnt * ch->sustain;
 		}
 	} else if (ch->sustain == 0) {
 			amp = 0;
@@ -56,16 +57,18 @@ static int16_t sound_process(sound_channel_t* ch) {
 	} else {
 		amp = ch->sustain;
 	}
+	ch->count++;
 	
-	int16_t out = ch->sample[ch->position % ch->sample_len] * amp * ch->volume;
+	int16_t out = ch->sample[ch->sample_pos % ch->sample_len] * amp * ch->volume;
 
+	// advance sample according to pitch periods
 	for (uint8_t p = 0; p < ch->period_mult; p++) {
-		ch->position += (ch->period)->period[ch->period_pos];
+		ch->sample_pos += (ch->period)->period[ch->period_pos];
 		ch->period_pos = (ch->period_pos + 1) % ch->period->len;
 	}
-	if (!ch->repeat && ch->position >= ch->sample_len) {
+	if (!ch->repeat && ch->sample_pos >= ch->sample_len) {
 		ch->playing = false;
-		ch->position = 0;
+		ch->sample_pos = 0;
 	}
 	return out;
 }
@@ -177,25 +180,25 @@ void sound_setup(uint8_t ch, uint8_t wave, float volume, float attack, float dec
 
 	sound_chs[ch].sample = sample_waves[wave];
 	sound_chs[ch].sample_len = sample_lens[wave];
-	sound_chs[ch].position = 0;
-	sound_chs[ch].position_released = 0;
+	sound_chs[ch].sample_pos = 0;
+	sound_chs[ch].count = 0;
+	sound_chs[ch].count_released = 0;
 	sound_chs[ch].playing = false;
 	sound_chs[ch].repeat = true;
 	sound_chs[ch].volume = volume;
-	sound_chs[ch].attack = attack;
-	sound_chs[ch].attack_pos = attack * BITRATE / 1000;
-	sound_chs[ch].decay = decay;
-	sound_chs[ch].decay_pos = decay * BITRATE / 1000;
+	sound_chs[ch].attack_cnt = attack * BITRATE / 1000;
+	sound_chs[ch].decay_cnt = decay * BITRATE / 1000;
 	sound_chs[ch].sustain = sustain;
-	sound_chs[ch].release = release;
+	sound_chs[ch].release_cnt = release * BITRATE / 1000;
 }
 
 void sound_play(uint8_t ch, int note) {
 	if (ch >= CHANNELS) return;
 
 	sound_chs[ch].playing = true;
-	sound_chs[ch].position = 0;
-	sound_chs[ch].position_released = 0;
+	sound_chs[ch].sample_pos = 0;
+	sound_chs[ch].count = 0;
+	sound_chs[ch].count_released = 0;
 	sound_chs[ch].period = &pitch_periods[note % 12];
 	sound_chs[ch].period_mult = 1 << (int)(note/12);
 	sound_chs[ch].period_pos = 0;
@@ -204,9 +207,8 @@ void sound_play(uint8_t ch, int note) {
 void sound_off(uint8_t ch) {
 	if (ch >= CHANNELS) return;
 
-	if (sound_chs[ch].playing && sound_chs[ch].position_released == 0) {
-		sound_chs[ch].position_released = sound_chs[ch].position;
-		sound_chs[ch].release_pos = sound_chs[ch].release * BITRATE / 1000;
+	if (sound_chs[ch].playing && sound_chs[ch].count_released == 0) {
+		sound_chs[ch].count_released = sound_chs[ch].count;
 	}
 }
 
