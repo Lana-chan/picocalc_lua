@@ -35,6 +35,7 @@ typedef struct {
 	uint32_t release_cnt;
 	bool repeat;
 	bool playing;
+	int16_t start_at;
 } sound_channel_t;
 
 void sound_init();

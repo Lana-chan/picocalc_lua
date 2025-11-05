@@ -3,6 +3,7 @@
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "hardware/clocks.h"
+#include "pico/time.h"
 #include <stdio.h>
 
 #include "samples.h"
@@ -18,6 +19,7 @@ static dma_channel_config sound_dma_config;
 #define SOUND_BUFFER_COUNT 4
 static uint16_t sound_buffer[SOUND_BUFFER_COUNT][SOUND_BUFFER_SIZE];
 static uint8_t sound_buffer_select;
+static absolute_time_t buffer_time_corrector;
 
 static sound_channel_t sound_chs[CHANNELS];
 
@@ -61,7 +63,8 @@ static void sound_fillbuffer(uint16_t* buffer) {
 		int32_t out = BITDEPTH / 2 + 1;
 		for (uint8_t n = 0; n < CHANNELS; n++) {
 			sound_channel_t *ch = &sound_chs[n];
-			if (ch->playing) {
+			if (ch->playing && ch->start_at <= i) {
+				ch->start_at = -1;
 				out += sound_process(ch);
 			}
 		}
@@ -81,6 +84,7 @@ static void sound_dma_handler(void) {
 	dma_hw->ints0 = 1u << sound_dma_chan;
 	dma_channel_set_read_addr(sound_dma_chan, sound_buffer[sound_buffer_select], true);
 	sound_buffer_select = (sound_buffer_select + 1) % SOUND_BUFFER_COUNT;
+	buffer_time_corrector = get_absolute_time();
 	sound_fillbuffer(sound_buffer[sound_buffer_select]);
 }
 
@@ -168,6 +172,10 @@ void sound_setup(uint8_t ch, uint8_t wave, float volume, float attack, float dec
 	sound_chs[ch].release_cnt = release * BITRATE / 1000;
 }
 
+static inline int16_t get_sampletime_correction() {
+	return absolute_time_diff_us(buffer_time_corrector, get_absolute_time()) * (float)((float)BITRATE / 1000000.0f);
+}
+
 void sound_playnote(uint8_t ch, int note) {
 	if (ch >= CHANNELS) return;
 
@@ -187,6 +195,7 @@ void sound_playnote(uint8_t ch, int note) {
 	};
 
 	sound_chs[ch].playing = true;
+	sound_chs[ch].start_at = get_sampletime_correction();
 	sound_chs[ch].sample_pos = 0;
 	sound_chs[ch].counter = 0;
 	sound_chs[ch].counter_released = 0;
@@ -201,6 +210,7 @@ void sound_playpitch(uint8_t ch, float pitch) {
 	if (ch >= CHANNELS) return;
 
 	sound_chs[ch].playing = true;
+	sound_chs[ch].start_at = get_sampletime_correction();
 	sound_chs[ch].sample_pos = 0;
 	sound_chs[ch].pos_increment = pitch * 256;
 	sound_chs[ch].counter = 0;
