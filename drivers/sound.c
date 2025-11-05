@@ -152,7 +152,7 @@ void sound_setclk() {
 
 void sound_setup(uint8_t ch, uint8_t wave, float volume, float attack, float decay, float sustain, float release) {
 	if (ch >= CHANNELS) return;
-	if (wave > 5) return;
+	if (wave > 12) return;
 
 	sound_chs[ch].sample = sample_waves[wave];
 	sound_chs[ch].sample_len = sample_lens[wave];
@@ -160,7 +160,7 @@ void sound_setup(uint8_t ch, uint8_t wave, float volume, float attack, float dec
 	sound_chs[ch].counter = 0;
 	sound_chs[ch].counter_released = 0;
 	sound_chs[ch].playing = false;
-	sound_chs[ch].repeat = true;
+	sound_chs[ch].repeat = (wave < 6);
 	sound_chs[ch].volume = volume;
 	sound_chs[ch].attack_cnt = attack * BITRATE / 1000;
 	sound_chs[ch].decay_cnt = decay * BITRATE / 1000;
