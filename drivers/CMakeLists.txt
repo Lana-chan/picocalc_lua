@@ -11,6 +11,8 @@ project(drivers
 
 add_library(drivers INTERFACE)
 
+pico_generate_pio_header(drivers ${CMAKE_CURRENT_LIST_DIR}/st7789_lcd.pio)
+
 target_sources(drivers INTERFACE
 	keyboard.c
 	lcd.c
@@ -23,6 +25,7 @@ target_sources(drivers INTERFACE
 target_link_libraries(drivers INTERFACE
 	pico_stdlib
 	hardware_spi
+	hardware_pio
 	hardware_i2c
 	rp2040-psram
 )
