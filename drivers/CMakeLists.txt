@@ -13,7 +13,6 @@ add_library(drivers INTERFACE)
 
 target_sources(drivers INTERFACE
 	keyboard.c
-	psram.c
 	lcd.c
 	term.c
 	draw.c
