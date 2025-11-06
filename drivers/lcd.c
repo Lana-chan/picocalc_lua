@@ -7,7 +7,8 @@
 #include "pico/time.h"
 
 #include "hardware/gpio.h"
-#include "hardware/spi.h"
+#include "hardware/pio.h"
+#include "st7789_lcd.pio.h"
 #include "psram_spi.h"
 
 #include "lcd.h"
@@ -22,8 +23,8 @@
 #define LCD_CS  13
 #define LCD_DC  14
 #define LCD_RST 15
-#define LCD_SPI spi1
-#define LCD_SPI_SPEED (75 * 1000 * 1000)
+#define LCD_PIO pio1
+#define SERIAL_CLK_DIV 1.f
 
 void(*lcd_draw_ptr) (u16*,int,int,int,int);
 void(*lcd_fill_ptr) (u16,int,int,int,int);
@@ -33,6 +34,9 @@ void(*lcd_buffer_read_ptr) (int);
 psram_spi_inst_t psram_spi;
 psram_spi_inst_t* async_spi_inst;
 
+uint lcd_sm = 0;
+uint lcd_offset;
+
 uint8_t* framebuffer;
 int framebuffer_mode;
 
@@ -40,19 +44,30 @@ int framebuffer_mode;
 uint16_t lcd_tmpbuf[LCD_TMPBUF_SIZE];
 
 static inline void lcd_set_dc_cs(bool dc, bool cs) {
-	busy_wait_us(1);
 	gpio_put_masked((1u << LCD_DC) | (1u << LCD_CS), !!dc << LCD_DC | !!cs << LCD_CS);
-	busy_wait_us(1);
 }
 
 static inline void lcd_write_cmd(const uint8_t *cmd, size_t count) {
+	st7789_lcd_wait_idle(LCD_PIO, lcd_sm);
 	lcd_set_dc_cs(0, 0);
-	spi_write_blocking(LCD_SPI, cmd, 1);
+	st7789_lcd_put(LCD_PIO, lcd_sm, *cmd++);
 	if (count >= 2) {
+		st7789_lcd_wait_idle(LCD_PIO, lcd_sm);
 		lcd_set_dc_cs(1, 0);
-		spi_write_blocking(LCD_SPI, cmd+1, count-1);
+		for (size_t i = 0; i < count - 1; ++i)
+			st7789_lcd_put(LCD_PIO, lcd_sm, *cmd++);
 	}
+	st7789_lcd_wait_idle(LCD_PIO, lcd_sm);
 	lcd_set_dc_cs(0, 1);
+}
+
+static inline void lcd_write16(const uint16_t *data, size_t count) {
+	uint16_t color;
+	for (size_t i = 0; i < count; ++i) {
+		color = *data++;
+		st7789_lcd_put(LCD_PIO, lcd_sm, color >> 8);
+		st7789_lcd_put(LCD_PIO, lcd_sm, color & 0xff);
+	}
 }
 
 static inline void lcd_initcmd(const uint8_t *init_seq) {
@@ -110,10 +125,9 @@ static void lcd_direct_draw(u16* pixels, int x, int y, int width, int height) {
 	normalize_coords(&x, &y, &width, &height, MEM_HEIGHT);
 	lcd_set_region(x, y, x + width - 1, y + height - 1);
 
-	//lcd_write_data((u8*) pixels, width * height * 2);
-	spi_set_format(LCD_SPI, 16, 0, 0, SPI_MSB_FIRST);
-	spi_write16_blocking(LCD_SPI, pixels, width * height);
-	spi_set_format(LCD_SPI, 8, 0, 0, SPI_MSB_FIRST);
+	lcd_write16(pixels, width * height);
+
+	st7789_lcd_wait_idle(LCD_PIO, lcd_sm);
 	lcd_set_dc_cs(0, 1);
 }
 
@@ -121,19 +135,12 @@ static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
 	normalize_coords(&x, &y, &width, &height, MEM_HEIGHT);
 	lcd_set_region(x, y, x + width - 1, y + height - 1);
 	
-	int remaining = width * height;
-	int chunk_size = remaining < LCD_TMPBUF_SIZE ? remaining : LCD_TMPBUF_SIZE;
-	for (int i = 0; i < chunk_size; i++) lcd_tmpbuf[i] = color;
-	
-	spi_set_format(LCD_SPI, 16, 0, 0, SPI_MSB_FIRST);
-
-	while (remaining > chunk_size) {
-		spi_write16_blocking(LCD_SPI, lcd_tmpbuf, chunk_size);
-		remaining -= chunk_size;
+	for (size_t i = 0; i < width * height; ++i) {
+		st7789_lcd_put(LCD_PIO, lcd_sm, color >> 8);
+		st7789_lcd_put(LCD_PIO, lcd_sm, color & 0xff);
 	}
-	spi_write16_blocking(LCD_SPI, lcd_tmpbuf, remaining);
-	
-	spi_set_format(LCD_SPI, 8, 0, 0, SPI_MSB_FIRST);
+
+	st7789_lcd_wait_idle(LCD_PIO, lcd_sm);
 	lcd_set_dc_cs(0, 1);
 }
 
@@ -226,14 +233,12 @@ void lcd_buffer_blit_local() {
 	
 	lcd_set_region(0, 0, 319, 319);
 
-	spi_set_format(LCD_SPI, 16, 0, 0, SPI_MSB_FIRST);
-
 	for (int y = 0; y < LCD_HEIGHT * LCD_WIDTH; y += LCD_TMPBUF_SIZE) {
 		lcd_buffer_read_ptr(y);
-		spi_write16_blocking(LCD_SPI, lcd_tmpbuf, LCD_TMPBUF_SIZE);
+		lcd_write16(lcd_tmpbuf, LCD_TMPBUF_SIZE);
 	}
 
-	spi_set_format(LCD_SPI, 8, 0, 0, SPI_MSB_FIRST);
+	st7789_lcd_wait_idle(LCD_PIO, lcd_sm);
 	lcd_set_dc_cs(0, 1);
 }
 
@@ -434,7 +439,7 @@ void lcd_init() {
 	// Init GPIO
 	gpio_init(LCD_SCK);
 	gpio_init(LCD_TX);
-	gpio_init(LCD_RX);
+	//gpio_init(LCD_RX);
 	gpio_init(LCD_CS);
 	gpio_init(LCD_DC);
 	gpio_init(LCD_RST);
@@ -446,12 +451,9 @@ void lcd_init() {
 	gpio_set_dir(LCD_DC, GPIO_OUT);
 	gpio_set_dir(LCD_RST, GPIO_OUT);
 
-	// Init SPI
-	spi_init(LCD_SPI, LCD_SPI_SPEED);
-	gpio_set_function(LCD_SCK, GPIO_FUNC_SPI);
-	gpio_set_function(LCD_TX, GPIO_FUNC_SPI);
-	gpio_set_function(LCD_RX, GPIO_FUNC_SPI);
-	gpio_set_input_hysteresis_enabled(LCD_RX, true);
+	// Init PIO
+	lcd_offset = pio_add_program(LCD_PIO, &st7789_lcd_program);
+	st7789_lcd_program_init(LCD_PIO, lcd_sm, lcd_offset, LCD_TX, LCD_SCK, SERIAL_CLK_DIV);
 
 	lcd_set_dc_cs(0, 1);
 	gpio_put(LCD_RST, 1);
