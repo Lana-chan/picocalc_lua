@@ -120,6 +120,7 @@ void sound_init() {
 
 	dma_channel_set_irq1_enabled(sound_dma_chan, true);
 	irq_set_exclusive_handler(DMA_IRQ_1, sound_dma_handler);
+	irq_set_priority(DMA_IRQ_1, PICO_DEFAULT_IRQ_PRIORITY - 10);
 	irq_set_enabled(DMA_IRQ_1, true);
 
 	sound_buffer_select = 0;

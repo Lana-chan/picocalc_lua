@@ -9,7 +9,6 @@
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 
-#include "drivers/psram.h"
 #include "drivers/lcd.h"
 #include "drivers/term.h"
 #include "drivers/keyboard.h"
@@ -21,7 +20,6 @@
 #include "corelua.h"
 
 int main() {
-	psram_init();
 	lcd_init();
 	keyboard_init();
 	stdio_picocalc_init(); 
