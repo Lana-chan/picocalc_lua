@@ -49,8 +49,7 @@ typedef struct {
 
 void sound_init();
 void sound_setclk();
-void sound_playnote(uint8_t ch, int note);
-void sound_playpitch(uint8_t ch, float pitch);
+void sound_playnote(uint8_t ch, int note, instrument_t *inst);
+void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst);
 void sound_stop(uint8_t ch);
 void sound_off(uint8_t ch);
-void sound_setup(uint8_t ch, instrument_t *inst);

@@ -5,6 +5,7 @@
 #include "hardware/clocks.h"
 #include "pico/time.h"
 #include <stdio.h>
+#include <math.h>
 
 #include "samples.h"
 
@@ -22,6 +23,7 @@ static uint8_t sound_buffer_select;
 static absolute_time_t buffer_time_corrector;
 
 static sound_channel_t sound_chs[CHANNELS];
+static sound_channel_t schedule_chs[CHANNELS];
 
 static int16_t sound_process(sound_channel_t* ch) {
 	float amp;
@@ -62,9 +64,12 @@ static void sound_fillbuffer(uint16_t* buffer) {
 	for (uint16_t i = 0; i < SOUND_BUFFER_SIZE; i++) {
 		int32_t out = BITDEPTH / 2 + 1;
 		for (uint8_t n = 0; n < CHANNELS; n++) {
+			if (schedule_chs[n].start_at > 0 && i >= schedule_chs[n].start_at) {
+				schedule_chs[n].start_at = -1;
+				sound_chs[n] = schedule_chs[n];
+			}
 			sound_channel_t *ch = &sound_chs[n];
-			if (ch->playing && ch->start_at <= i) {
-				ch->start_at = -1;
+			if (ch->playing) {
 				out += sound_process(ch);
 			}
 		}
@@ -115,17 +120,11 @@ void sound_init() {
 	);
 
 	pwm_set_enabled(sound_slice, true);
-	
-	instrument_t def = {
-		.wave = 0,
-		.volume = 1,
-		.attack = 0,
-		.decay = 1000,
-		.sustain = 0,
-		.release = 0,
-	};
 
-	for (int i = 0; i < CHANNELS; i++) sound_setup(i, &def);
+	for (int i = 0; i < CHANNELS; i++) {
+		sound_chs[i].playing = false;
+		schedule_chs[i].start_at = -1;
+	}
 
 	dma_channel_set_irq1_enabled(sound_dma_chan, true);
 	irq_set_exclusive_handler(DMA_IRQ_1, sound_dma_handler);
@@ -164,67 +163,60 @@ void sound_setclk() {
 	dma_timer_set_fraction(sound_dma_timer, best_numerator, best_denominator);
 }
 
-void sound_setup(uint8_t ch, instrument_t *inst) {
-	if (ch >= CHANNELS) return;
-	if (inst->wave > 12) return;
-
-	sound_chs[ch].sample = sample_waves[inst->wave];
-	sound_chs[ch].sample_len = sample_lens[inst->wave];
-	sound_chs[ch].sample_pos = 0;
-	sound_chs[ch].counter = 0;
-	sound_chs[ch].counter_released = 0;
-	sound_chs[ch].playing = false;
-	sound_chs[ch].repeat = (inst->wave < 6);
-	sound_chs[ch].volume = inst->volume;
-	sound_chs[ch].attack_cnt = inst->attack * BITRATE / 1000;
-	sound_chs[ch].decay_cnt = inst->decay * BITRATE / 1000;
-	sound_chs[ch].sustain = inst->sustain;
-	sound_chs[ch].release_cnt = inst->release * BITRATE / 1000;
-}
-
 static inline int16_t get_sampletime_correction() {
 	return absolute_time_diff_us(buffer_time_corrector, get_absolute_time()) * (float)((float)BITRATE / 1000000.0f);
 }
 
-void sound_playnote(uint8_t ch, int note) {
+void sound_playnote(uint8_t ch, int note, instrument_t *inst) {
 	if (ch >= CHANNELS) return;
 
-	const uint16_t pitches[] = {
-		256,
-		271,
-		287,
-		304,
-		323,
-		342,
-		362,
-		384,
-		406,
-		431,
-		456,
-		483,
+	const float pitches[] = {
+		1.0,
+		1.0594,
+		1.1224,
+		1.1892,
+		1.2599,
+		1.3348,
+		1.4142,
+		1.4983,
+		1.5874,
+		1.6817,
+		1.7817,
+		1.8877,
 	};
 
-	sound_chs[ch].playing = true;
-	sound_chs[ch].start_at = get_sampletime_correction();
-	sound_chs[ch].sample_pos = 0;
-	sound_chs[ch].counter = 0;
-	sound_chs[ch].counter_released = 0;
+	float pitch = pitches[note % 12];
 	int8_t octave = note / 12 - 3;
 	if (octave < 0)
-		sound_chs[ch].pos_increment = pitches[note % 12] >> -octave;
+		pitch /= pow(2, -octave);
 	else
-		sound_chs[ch].pos_increment = pitches[note % 12] << octave;
+		pitch *= pow(2, octave);
+	sound_playpitch(ch, pitch, inst);
 }
 
-void sound_playpitch(uint8_t ch, float pitch) {
+void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 	if (ch >= CHANNELS) return;
+	if (inst->wave > 12) return;
 
-	sound_chs[ch].playing = true;
-	sound_chs[ch].start_at = get_sampletime_correction();
-	sound_chs[ch].sample_pos = 0;
-	sound_chs[ch].pos_increment = pitch * 256;
-	sound_chs[ch].counter = 0;
-	sound_chs[ch].counter_released = 0;
+	schedule_chs[ch].sample = sample_waves[inst->wave];
+	schedule_chs[ch].sample_len = sample_lens[inst->wave];
+	schedule_chs[ch].sample_pos = 0;
+	schedule_chs[ch].counter = 0;
+	schedule_chs[ch].counter_released = 0;
+	schedule_chs[ch].playing = false;
+	schedule_chs[ch].repeat = (inst->wave < 6);
+	schedule_chs[ch].volume = inst->volume;
+	schedule_chs[ch].attack_cnt = inst->attack * BITRATE / 1000;
+	schedule_chs[ch].decay_cnt = inst->decay * BITRATE / 1000;
+	schedule_chs[ch].sustain = inst->sustain;
+	schedule_chs[ch].release_cnt = inst->release * BITRATE / 1000;
+
+	schedule_chs[ch].playing = true;
+	schedule_chs[ch].start_at = get_sampletime_correction();
+	schedule_chs[ch].sample_pos = 0;
+	schedule_chs[ch].pos_increment = pitch * 256;
+	schedule_chs[ch].counter = 0;
+	schedule_chs[ch].counter_released = 0;
 }
 
 void sound_off(uint8_t ch) {

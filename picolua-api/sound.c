@@ -17,8 +17,7 @@ int l_sound_playnote(lua_State *L) {
 	int ch = luaL_checkinteger(L, 1);
 	int note = luaL_checkinteger(L, 2);
 	instrument_t* inst = l_checkinst(L, 3);
-	sound_setup(ch, inst);
-	sound_playnote(ch, note);
+	sound_playnote(ch, note, inst);
 	return 0;
 }
 
@@ -26,8 +25,7 @@ int l_sound_playpitch(lua_State *L) {
 	int ch = luaL_checkinteger(L, 1);
 	float pitch = luaL_checknumber(L, 2);
 	instrument_t* inst = l_checkinst(L, 3);
-	sound_setup(ch, inst);
-	sound_playpitch(ch, pitch);
+	sound_playpitch(ch, pitch, inst);
 	return 0;
 }
 
