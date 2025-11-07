@@ -116,7 +116,16 @@ void sound_init() {
 
 	pwm_set_enabled(sound_slice, true);
 	
-	for (int i = 0; i < CHANNELS; i++) sound_setup(i, 0, 1, 0, 1000, 0, 0);
+	instrument_t def = {
+		.wave = 0,
+		.volume = 1,
+		.attack = 0,
+		.decay = 1000,
+		.sustain = 0,
+		.release = 0,
+	};
+
+	for (int i = 0; i < CHANNELS; i++) sound_setup(i, &def);
 
 	dma_channel_set_irq1_enabled(sound_dma_chan, true);
 	irq_set_exclusive_handler(DMA_IRQ_1, sound_dma_handler);
@@ -155,22 +164,22 @@ void sound_setclk() {
 	dma_timer_set_fraction(sound_dma_timer, best_numerator, best_denominator);
 }
 
-void sound_setup(uint8_t ch, uint8_t wave, float volume, float attack, float decay, float sustain, float release) {
+void sound_setup(uint8_t ch, instrument_t *inst) {
 	if (ch >= CHANNELS) return;
-	if (wave > 12) return;
+	if (inst->wave > 12) return;
 
-	sound_chs[ch].sample = sample_waves[wave];
-	sound_chs[ch].sample_len = sample_lens[wave];
+	sound_chs[ch].sample = sample_waves[inst->wave];
+	sound_chs[ch].sample_len = sample_lens[inst->wave];
 	sound_chs[ch].sample_pos = 0;
 	sound_chs[ch].counter = 0;
 	sound_chs[ch].counter_released = 0;
 	sound_chs[ch].playing = false;
-	sound_chs[ch].repeat = (wave < 6);
-	sound_chs[ch].volume = volume;
-	sound_chs[ch].attack_cnt = attack * BITRATE / 1000;
-	sound_chs[ch].decay_cnt = decay * BITRATE / 1000;
-	sound_chs[ch].sustain = sustain;
-	sound_chs[ch].release_cnt = release * BITRATE / 1000;
+	sound_chs[ch].repeat = (inst->wave < 6);
+	sound_chs[ch].volume = inst->volume;
+	sound_chs[ch].attack_cnt = inst->attack * BITRATE / 1000;
+	sound_chs[ch].decay_cnt = inst->decay * BITRATE / 1000;
+	sound_chs[ch].sustain = inst->sustain;
+	sound_chs[ch].release_cnt = inst->release * BITRATE / 1000;
 }
 
 static inline int16_t get_sampletime_correction() {

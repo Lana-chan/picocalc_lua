@@ -38,10 +38,19 @@ typedef struct {
 	int16_t start_at;
 } sound_channel_t;
 
+typedef struct {
+	uint8_t wave;
+	float volume;
+	uint16_t attack;
+	uint16_t decay;
+	uint16_t sustain;
+	uint16_t release;
+} instrument_t;
+
 void sound_init();
 void sound_setclk();
 void sound_playnote(uint8_t ch, int note);
 void sound_playpitch(uint8_t ch, float pitch);
 void sound_stop(uint8_t ch);
 void sound_off(uint8_t ch);
-void sound_setup(uint8_t ch, uint8_t wave, float volume, float attack, float decay, float sustain, float release);
+void sound_setup(uint8_t ch, instrument_t *inst);
