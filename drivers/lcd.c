@@ -30,7 +30,7 @@ void(*lcd_draw_ptr) (u16*,int,int,int,int);
 void(*lcd_fill_ptr) (u16,int,int,int,int);
 void(*lcd_point_ptr) (u16,int,int);
 void(*lcd_clear_ptr) (void);
-void(*lcd_buffer_read_ptr) (int);
+
 psram_spi_inst_t psram_spi;
 psram_spi_inst_t* async_spi_inst;
 
@@ -216,26 +216,25 @@ static void lcd_ram_clear() {
 	memset(framebuffer, 0, LCD_WIDTH * LCD_HEIGHT);
 }
 
-static inline void lcd_buffer_read_psram(int y) {
-	for (int x = 0; x < LCD_TMPBUF_SIZE; x+=10) {
-		psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(lcd_tmpbuf + x), 20);
-	}
-}
-
-static inline void lcd_buffer_read_ram(int y) {
-	for (int x = 0; x < LCD_TMPBUF_SIZE; x++) {
-		lcd_tmpbuf[x] = lcd_to16[framebuffer[x + y]];
-	}
-}
-
 void lcd_buffer_blit_local() {
 	if (framebuffer_mode == LCD_BUFFERMODE_DIRECT) return;
 	
 	lcd_set_region(0, 0, 319, 319);
 
-	for (int y = 0; y < LCD_HEIGHT * LCD_WIDTH; y += LCD_TMPBUF_SIZE) {
-		lcd_buffer_read_ptr(y);
-		lcd_write16(lcd_tmpbuf, LCD_TMPBUF_SIZE);
+	if (framebuffer_mode == LCD_BUFFERMODE_PSRAM) {
+		for (int y = 0; y < LCD_HEIGHT * LCD_WIDTH; y += LCD_TMPBUF_SIZE) {
+			for (int x = 0; x < LCD_TMPBUF_SIZE; x+=10) {
+				psram_read(&psram_spi, (x+y)<<1, (uint8_t*)(lcd_tmpbuf + x), 20);
+			}
+			lcd_write16(lcd_tmpbuf, LCD_TMPBUF_SIZE);
+		}
+	} else if (framebuffer_mode == LCD_BUFFERMODE_RAM) {
+		uint16_t color;
+		for (size_t count = 0; count < LCD_WIDTH * LCD_HEIGHT; count++) {
+			color = lcd_to16[framebuffer[count]];
+			st7789_lcd_put(LCD_PIO, lcd_sm, color >> 8);
+			st7789_lcd_put(LCD_PIO, lcd_sm, color & 0xff);
+		}
 	}
 
 	st7789_lcd_wait_idle(LCD_PIO, lcd_sm);
@@ -271,7 +270,6 @@ bool lcd_buffer_enable_local(int mode) {
 		lcd_fill_ptr = &lcd_direct_fill;
 		lcd_point_ptr = &lcd_direct_point;
 		lcd_clear_ptr = &lcd_direct_clear;
-		lcd_buffer_read_ptr = NULL;
 		framebuffer_mode = mode;
 		return true;
 	} else if (mode == LCD_BUFFERMODE_PSRAM) {
@@ -279,7 +277,6 @@ bool lcd_buffer_enable_local(int mode) {
 		lcd_fill_ptr = &lcd_psram_fill;
 		lcd_point_ptr = &lcd_psram_point;
 		lcd_clear_ptr = &lcd_psram_clear;
-		lcd_buffer_read_ptr = &lcd_buffer_read_psram;
 		framebuffer_mode = mode;
 		return true;
 	} else if (mode == LCD_BUFFERMODE_RAM) {
@@ -290,7 +287,6 @@ bool lcd_buffer_enable_local(int mode) {
 				lcd_fill_ptr = &lcd_ram_fill;
 				lcd_point_ptr = &lcd_ram_point;
 				lcd_clear_ptr = &lcd_ram_clear;
-				lcd_buffer_read_ptr = &lcd_buffer_read_ram;
 				framebuffer_mode = mode;
 				return true;
 			}
