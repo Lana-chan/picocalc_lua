@@ -200,11 +200,6 @@ void term_set_bg(u16 color) {
 	ansi.bg = color;
 }
 
-void term_write(const char* text, size_t len) {
-	lcd_draw_text(ansi.x * font.glyph_width, ansi.y * font.glyph_height, ansi.fg, ansi.bg, text, len);
-	ansi.x += (len >= font.term_width ? font.term_width : len);
-}
-
 void term_blit(const char* text, const char* fg, const char* bg) {
 	u16 pfg = ansi.fg, pbg = ansi.bg;
 	const char *lfg = fg, *lbg = bg;

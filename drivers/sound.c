@@ -213,10 +213,7 @@ void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 
 	schedule_chs[ch].playing = true;
 	schedule_chs[ch].start_at = get_sampletime_correction();
-	schedule_chs[ch].sample_pos = 0;
 	schedule_chs[ch].pos_increment = pitch * 256;
-	schedule_chs[ch].counter = 0;
-	schedule_chs[ch].counter_released = 0;
 }
 
 void sound_off(uint8_t ch) {
