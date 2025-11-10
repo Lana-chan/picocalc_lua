@@ -91,17 +91,18 @@ int l_sound_stopall(lua_State *L) {
 int l_sound_setup(lua_State* L) {
 	instrument_t* source = luaL_testudata(L, 1, instrument);
 
-	instrument_t *inst = lua_newuserdata(L, sizeof(instrument_t));
-	luaL_getmetatable(L, instrument);
-	lua_setmetatable(L, -2);
+	instrument_t *inst;
 
 	if (source) {
 		// copy constructor
+		inst = lua_newuserdata(L, sizeof(instrument_t));
+		luaL_getmetatable(L, instrument);
+		lua_setmetatable(L, -2);
 		*inst = *source;
 	} else {
 		// settings by arguments
-		int wave = luaL_optinteger(L, 1, 0);
-		if (inst->wave >= sound_getsamplecount()) luaL_argerror(L, 1, "wavetable outside bounds");
+		uint8_t wave = luaL_optinteger(L, 1, 0);
+		if (wave >= sound_getsamplecount()) luaL_argerror(L, 1, "wavetable outside bounds");
 		float volume = luaL_optnumber(L, 2, 1);
 		uint16_t attack = luaL_optinteger(L, 3, 0);
 		uint16_t decay = luaL_optinteger(L, 4, 1000);
@@ -114,6 +115,10 @@ int l_sound_setup(lua_State* L) {
 		uint16_t table_len;
 		sound_getsampledata(wave, &table_len, NULL);
 		uint16_t table_end = luaL_optinteger(L, 10, table_len-1);
+
+		inst = lua_newuserdata(L, sizeof(instrument_t));
+		luaL_getmetatable(L, instrument);
+		lua_setmetatable(L, -2);
 
 		inst->wave = wave;
 		inst->volume = volume;

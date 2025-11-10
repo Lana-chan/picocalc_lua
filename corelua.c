@@ -71,7 +71,7 @@ void lua_post_script(lua_State *L) {
 	sys_stoptimer(L);
 	lcd_buffer_enable(0);
 	lua_getglobal(L, "collectgarbage");
-	lua_pcall(L, 0, 1, 0);
+	lua_pcall(L, 0, 0, 0);
 	keyboard_set_interrupt_callback(NULL);
 }
 

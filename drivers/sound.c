@@ -306,6 +306,6 @@ const int16_t* sound_getsampledata(uint8_t wave, uint16_t* table_len, uint16_t* 
 	return (sample+2);
 }
 
-const uint8_t sound_getsamplecount() {
+uint8_t sound_getsamplecount() {
 	return sizeof(sample_waves)/sizeof(void*);
 }
