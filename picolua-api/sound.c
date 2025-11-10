@@ -48,6 +48,9 @@ int l_sound_setup(lua_State* L) {
 	float decay = luaL_optnumber(L, 4, 1000);
 	float sustain = luaL_optnumber(L, 5, 0);
 	float release = luaL_optnumber(L, 6, 0);
+	enum TABLE_MODE table_mode = luaL_optinteger(L, 7, 0);
+	uint16_t table_pos = luaL_optinteger(L, 8, 0);
+	int16_t table_playtarget = luaL_optinteger(L, 9, 0);
 
 	instrument_t *inst = lua_newuserdata(L, sizeof(instrument_t));
 	luaL_getmetatable(L, instrument);
@@ -59,6 +62,9 @@ int l_sound_setup(lua_State* L) {
 	inst->decay = decay;
 	inst->sustain = sustain;
 	inst->release = release;
+	inst->table_mode = table_mode;
+	inst->table_pos = table_pos;
+	inst->table_playtarget = table_playtarget;
 	
 	return 1;
 }

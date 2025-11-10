@@ -10,32 +10,39 @@
 #define BITDEPTH 65535 // 16bit samples
 #define CHANNELS 8
 
+#define PITCH_RESOLUTION 256
+
 typedef struct {
 	int len;
 	char* period;
 } period_t;
 
-enum AMP_MODE {
-	AMP_ADSR,
-	AMP_ARRAY,
+enum TABLE_MODE {
+	TABLE_SINGLE,   // one sample, then end
+	TABLE_ONESHOT,  // sweep table, loop last wave
+	TABLE_PINGPONG, // sweep table forwards then backwards
+	TABLE_LOOP,     // sweep table forwards and start over
 };
 
 typedef struct {
 	const int16_t *sample;
 	uint32_t sample_len;
 	uint32_t sample_pos;
-	uint16_t pos_increment;
+	uint16_t sample_pos_increment;
 	uint32_t counter;
 	uint32_t counter_released;
 	float volume;
-	enum AMP_MODE amp_mode;
 	uint32_t attack_cnt;
 	uint32_t decay_cnt;
 	float sustain;
 	uint32_t release_cnt;
-	bool repeat;
 	bool playing;
 	int16_t start_at;
+	enum TABLE_MODE table_mode;
+	uint16_t table_len;
+	uint16_t table_pos;
+	int16_t table_playcount;
+	int16_t table_playtarget;
 } sound_channel_t;
 
 typedef struct {
@@ -43,8 +50,11 @@ typedef struct {
 	float volume;
 	uint16_t attack;
 	uint16_t decay;
-	uint16_t sustain;
+	float sustain;
 	uint16_t release;
+	enum TABLE_MODE table_mode;
+	uint16_t table_pos;
+	int16_t table_playtarget;
 } instrument_t;
 
 void sound_init();

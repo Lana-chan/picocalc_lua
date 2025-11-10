@@ -25,6 +25,9 @@ static absolute_time_t buffer_time_corrector;
 static sound_channel_t sound_chs[CHANNELS];
 static sound_channel_t schedule_chs[CHANNELS];
 
+#define SGN(x) (x > 0 ? 1 : (x < 0 ? -1 : 0))
+#define ABS(x) (x > 0 ? x : -x)
+
 static int16_t sound_process(sound_channel_t* ch) {
 	float amp;
 
@@ -48,13 +51,34 @@ static int16_t sound_process(sound_channel_t* ch) {
 	}
 	ch->counter++;
 	
-	int16_t out = ch->sample[(ch->sample_pos >> 8) % ch->sample_len] * amp * ch->volume;
-	ch->sample_pos += ch->pos_increment;
+	uint32_t sample_pos = (ch->sample_pos / PITCH_RESOLUTION) + (ch->table_pos * ch->sample_len);
+	int16_t out = ch->sample[sample_pos] * amp * ch->volume;
+	ch->sample_pos += ch->sample_pos_increment;
 
-	if (!ch->repeat && ch->sample_pos>>8 >= ch->sample_len) {
-		ch->playing = false;
-		ch->sample_pos = 0;
+	if (ch->sample_pos / PITCH_RESOLUTION >= ch->sample_len) {
+		if (ch->table_mode == TABLE_SINGLE) ch->playing = false;
+		else ch->sample_pos %= ch->sample_len * PITCH_RESOLUTION;
 	}
+	
+	if (ch->counter % ABS(ch->table_playtarget) == 0) {
+		ch->table_pos += SGN(ch->table_playtarget);
+		if (ch->table_pos >= ch->table_len) {
+			switch (ch->table_mode) {
+				case TABLE_ONESHOT:
+					ch->table_pos -= SGN(ch->table_playtarget);
+					ch->table_playtarget = 0;
+					break;
+				case TABLE_PINGPONG:
+					ch->table_pos -= SGN(ch->table_playtarget);
+					ch->table_playtarget *= -1;
+					break;
+				case TABLE_LOOP:
+					ch->table_pos = (ch->table_playtarget > 0 ? 0 : ch->table_len-1);
+					break;
+			}
+		}
+	}
+
 	return out;
 }
 
@@ -196,24 +220,30 @@ void sound_playnote(uint8_t ch, int note, instrument_t *inst) {
 
 void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 	if (ch >= CHANNELS) return;
-	if (inst->wave > 12) return;
+	if (inst->wave >= sizeof(sample_waves)/sizeof(void*)) return;
 
-	schedule_chs[ch].sample = sample_waves[inst->wave];
-	schedule_chs[ch].sample_len = sample_lens[inst->wave];
+	const int16_t *sample = sample_waves[inst->wave];
+	schedule_chs[ch].sample = (sample + 2);
+	schedule_chs[ch].sample_len = (uint16_t)*(sample + 1);
 	schedule_chs[ch].sample_pos = 0;
 	schedule_chs[ch].counter = 0;
 	schedule_chs[ch].counter_released = 0;
 	schedule_chs[ch].playing = false;
-	schedule_chs[ch].repeat = (inst->wave < 6);
 	schedule_chs[ch].volume = inst->volume;
 	schedule_chs[ch].attack_cnt = inst->attack * BITRATE / 1000;
 	schedule_chs[ch].decay_cnt = inst->decay * BITRATE / 1000;
 	schedule_chs[ch].sustain = inst->sustain;
 	schedule_chs[ch].release_cnt = inst->release * BITRATE / 1000;
 
+	schedule_chs[ch].table_len = (uint16_t)*(sample);
+	schedule_chs[ch].table_mode = inst->table_mode;
+	schedule_chs[ch].table_pos = inst->table_pos % schedule_chs[ch].table_len;
+	schedule_chs[ch].table_playcount = 0;
+	schedule_chs[ch].table_playtarget = inst->table_playtarget;
+
 	schedule_chs[ch].playing = true;
 	schedule_chs[ch].start_at = get_sampletime_correction();
-	schedule_chs[ch].pos_increment = pitch * 256;
+	schedule_chs[ch].sample_pos_increment = pitch * PITCH_RESOLUTION;
 }
 
 void sound_off(uint8_t ch) {
