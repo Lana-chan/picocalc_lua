@@ -61,22 +61,24 @@ static int16_t sound_process(sound_channel_t* ch) {
 		else ch->sample_pos %= ch->sample_len * PITCH_RESOLUTION;
 	}
 	
-	if (ch->counter % ABS(ch->table_playrate) == 0) {
-		ch->table_pos += SGN(ch->table_playrate);
-		if ((SGN(ch->table_playrate) == 1 && ch->table_pos >= ch->table_end) || 
-				SGN(ch->table_playrate) == -1 && ch->table_pos <= ch->table_start) {
-			switch (ch->table_mode) {
-				case TABLE_ONESHOT:
-					ch->table_pos -= SGN(ch->table_playrate);
-					ch->table_playrate = 0;
-					break;
-				case TABLE_PINGPONG:
-					ch->table_pos -= SGN(ch->table_playrate);
-					ch->table_playrate *= -1;
-					break;
-				case TABLE_LOOP:
-					ch->table_pos = (ch->table_playrate > 0 ? ch->table_start : ch->table_end);
-					break;
+	if (ch->table_mode != TABLE_SINGLE) {
+		if (ch->counter % ABS(ch->table_playrate) == 0) {
+			ch->table_pos += SGN(ch->table_playrate);
+			if ((SGN(ch->table_playrate) == 1 && ch->table_pos >= ch->table_end) || 
+					SGN(ch->table_playrate) == -1 && ch->table_pos <= ch->table_start) {
+				switch (ch->table_mode) {
+					case TABLE_ONESHOT:
+						ch->table_pos -= SGN(ch->table_playrate);
+						ch->table_playrate = 0;
+						break;
+					case TABLE_PINGPONG:
+						ch->table_pos -= SGN(ch->table_playrate);
+						ch->table_playrate *= -1;
+						break;
+					case TABLE_LOOP:
+						ch->table_pos = (ch->table_playrate > 0 ? ch->table_start : ch->table_end);
+						break;
+				}
 			}
 		}
 	}
