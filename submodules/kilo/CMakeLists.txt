@@ -16,4 +16,5 @@ target_include_directories(kilo
     ../pico_fatfs/fatfs/conf
     ../../drivers
     ../lua-5.4.8
+    ../../
 )

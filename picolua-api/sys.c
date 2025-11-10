@@ -16,6 +16,10 @@
 #include "../drivers/keyboard.h"
 #include "../drivers/fs.h"
 #include "../drivers/sound.h"
+#include "../corelua.h"
+
+static int callback_reference = 0;
+static repeating_timer_t sys_timer;
 
 uint32_t get_total_memory() {
 	extern char __StackLimit, __bss_end__;
@@ -180,6 +184,50 @@ static int l_set_clock(lua_State* L) {
 	return 1;
 }
 
+// https://stackoverflow.com/a/21947358
+void sys_timer_execute(lua_State* L) {
+	lua_rawgeti(L, LUA_REGISTRYINDEX, callback_reference); // put ref on stack
+	lua_pushvalue(L, -1); // duplicate stack top
+	luaL_unref(L, LUA_REGISTRYINDEX, callback_reference); // clear old reference
+	callback_reference = 0;
+	if (0 != lua_pcall(L, 0, 0, 0)) { //call from stack (pops)
+		lua_writestringerror("%s", lua_tostring(L, -1));
+		cancel_repeating_timer(&sys_timer);
+	}
+	callback_reference = luaL_ref(L, LUA_REGISTRYINDEX); // register new reference from stack
+}
+
+static int l_repeatingtimer(lua_State* L) {
+	luaL_checktype(L, 2, LUA_TFUNCTION);
+
+	if (callback_reference != 0) {
+		// cleanup previous callback
+		cancel_repeating_timer(&sys_timer);
+		luaL_unref(L, LUA_REGISTRYINDEX, callback_reference);
+		callback_reference = 0;
+	}
+
+	int interval = luaL_checkinteger(L, 1);
+	int callback = luaL_ref(L, LUA_REGISTRYINDEX);
+	if (callback != LUA_REFNIL) {
+		callback_reference = callback;
+		add_repeating_timer_ms(interval, sys_timer_callback, NULL, &sys_timer);
+	}
+	
+	return 0;
+}
+
+void sys_stoptimer(lua_State* L) {
+	cancel_repeating_timer(&sys_timer);
+	luaL_unref(L, LUA_REGISTRYINDEX, callback_reference);
+	callback_reference = 0;
+}
+
+static int l_stoptimer(lua_State* L) {
+	sys_stoptimer(L);
+	return 0;
+}
+
 int luaopen_sys(lua_State *L) {
 	static const luaL_Reg syslib_f [] = {
 		{"totalMemory", l_get_total_memory},
@@ -192,6 +240,8 @@ int luaopen_sys(lua_State *L) {
 		{"battery", l_get_battery},
 		{"getClock", l_get_clock},
 		{"setClock", l_set_clock},
+		{"repeatTimer", l_repeatingtimer},
+		{"stopTimer", l_stoptimer},
 		{NULL, NULL}
 	};
 	

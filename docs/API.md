@@ -13,6 +13,8 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`battery()`](#battery)
 	- [`getClock()`](#getclock)
 	- [`setClock(speed)`](#setclockspeed)
+	- [`repeatTimer(interval, callback)`](#repeattimerinterval-callback)
+	- [`stopTimer()`](#stoptimer)
 - [`keys` - Keyboard handling functions](#keys---keyboard-handling-functions)
 	- [`poll()`](#poll)
 	- [`peek()`](#peek)
@@ -164,6 +166,16 @@ Sets the CPU clock speed
 
 **Returns**
 1. `boolean` - Whether or not the CPU clock was able to be set
+
+## `repeatTimer(interval, callback)`
+Sets up a repeating timer to run a Lua function. Only one timer can be set at a time and calling this function will cancel the previous timer if one was set
+
+**Parameters**
+1. `interval : number` - The interval in milliseconds to run the timer at. Positive values means time between each function execution (end to start), negative values means time between each function call (start to start)
+2. `callback : function` - The Lua function to execute when the timer fires
+
+## `stopTimer()`
+Stops an existing repeating timer
 
 
 # `keys` - Keyboard handling functions

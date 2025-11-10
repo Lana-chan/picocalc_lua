@@ -19,6 +19,7 @@
 #include "lcd.h"
 #include "fs.h"
 #include "sound.h"
+#include "corelua.h"
 
 /*** defines ***/
 
@@ -1007,17 +1008,16 @@ void runProgram() {
 	lua_pcall(L_state, 0, 1, 0);
 	term_set_blinking_cursor(false);
 
+	lua_pre_script(L_state);
+
 	int status = luaL_dofile(L_state, TEMP_FILENAME);
 
-	lcd_buffer_enable(0);
+	lua_post_script(L_state);
+
 	if(status != LUA_OK) {
 		const char *msg = lua_tostring(L_state, -1);
 		lua_writestringerror("%s\n", msg);
 	}
-
-	sound_stopall();
-	lua_getglobal(L_state, "collectgarbage");
-	lua_pcall(L_state, 0, 1, 0);
 	
 	printf("\x1b[%d;%dHPress any key...", E.screenrows+2, 1);
 	keyboard_flush();
@@ -1134,6 +1134,10 @@ void initEditor() {
 int start_editor(lua_State* L, const char* filename) {
 	L_state = L;
 
+	// consider kilo to be outside lua context
+	// mostly because of keybaord interrupt
+	lua_post_script(L);
+
 	initEditor();
 	if (filename && filename[0] != '\0') editorOpen(filename);
 
@@ -1160,6 +1164,9 @@ int start_editor(lua_State* L, const char* filename) {
 
 	write(STDOUT_FILENO, "\x1b[2J", 4);
 	write(STDOUT_FILENO, "\x1b[H", 3);
+
+	// returning to lua context
+	lua_pre_script(L);
 
 	return 0;
 }
