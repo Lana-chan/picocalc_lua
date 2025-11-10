@@ -282,3 +282,9 @@ void sound_setpitch(uint8_t ch, float pitch, bool relative) {
 		}
 	}
 }
+
+void sound_stopall() {
+	for (int n = 0; n < CHANNELS; n++) {
+		sound_chs[n].playing = false;
+	}
+}

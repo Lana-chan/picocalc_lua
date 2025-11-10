@@ -10,6 +10,7 @@
 #include "drivers/keyboard.h"
 #include "drivers/term.h"
 #include "drivers/fs.h"
+#include "drivers/sound.h"
 #include "drivers/multicore.h"
 #include "picolua-api/sys.h"
 
@@ -117,6 +118,7 @@ void lua_main() {
 			}
 		}
 		
+		sound_stopall();
 		lua_getglobal(L, "collectgarbage");
 		lua_pcall(L, 0, 1, 0);
 		keyboard_set_interrupt_callback(NULL);
