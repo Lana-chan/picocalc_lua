@@ -83,6 +83,20 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`subtract(color1, color2)`](#subtractcolor1-color2)
 	- [`multiply(color1, color2)`](#multiplycolor1-color2)
 	- [Constants](#constants-1)
+- [`sound` - Programmable Sound Generator](#sound---programmable-sound-generator)
+	- [`instrument([instrument|wave], [volume], [attack], [decay], [sustain], [release], [table_mode], [table_start], [table_playrate], [table_end])`](#instrumentinstrumentwave-volume-attack-decay-sustain-release-table_mode-table_start-table_playrate-table_end)
+	- [`play(channel, note, instrument)`](#playchannel-note-instrument)
+	- [`playPitch(channel, pitch, instrument)`](#playpitchchannel-pitch-instrument)
+	- [`off(channel)`](#offchannel)
+	- [`stop(channel)`](#stopchannel)
+	- [`stopAll()`](#stopall)
+	- [`volume(channel, volume, [relative])`](#volumechannel-volume-relative)
+	- [`pitch(channel, pitch, [relative])`](#pitchchannel-pitch-relative)
+	- [`Instrument`](#instrument)
+	- [Constants](#constants-2)
+		- [`presets`](#presets)
+		- [`drums`](#drums)
+		- [`tableModes`](#tablemodes)
 
 
 # `sys` - System functions
@@ -720,3 +734,114 @@ Multiply two 16-bit colors together
 * `green`
 * `red`
 * `black`
+
+
+# `sound` - Programmable Sound Generator
+
+## `instrument([instrument|wave], [volume], [attack], [decay], [sustain], [release], [table_mode], [table_start], [table_playrate], [table_end])`
+Create or clone an instrument object to be used to play sounds
+
+**Parameters**
+1. `instrument | wave : integer` - The wave sample number to assign to the instrument. If an `Instrument` object is passed instead, all other parameters are ignored and a clone of that instrument is returned. Defaults to 0 (pulse-width wavetable)
+2. `volume : number` - Overall instrument volume 0.0-1.0. Defaults to 1.0
+3. `attack : integer` - ADSR envelope attack value in milliseconds. Defaults to 0
+4. `decay : integer` - ADSR envelope decay value in milliseconds. Defaults to 1000
+5. `sustain : number` - ADSR envelope sustain value in 0.0-1.0. Defaults to 0.0
+6. `release : integer` - ADSR envelope release value in milliseconds. Defaults to 0
+7. `table_mode : integer` - Sets how the wavetable will be swept, see [`sound.tableModes`](#tablemodes). Defaults to `single`
+8. `table_start : integer` - Wavetable slice to start sweep at. Defaults to 0
+9.  `table_playrate : integer` - The number of samples to wait before advancing the wavetable sweep, lower numbers mean faster sweep, can be negative. Defaults to 500
+10. `table_end : integer` - Wavetable slice to end sweep at. Defaults to last slice of the selected wavetable
+
+**Returns**
+1. `Instrument` - Userdata object of an instrument which can be played
+
+## `play(channel, note, instrument)`
+Plays a note value using a specified instrument at a specified channel
+
+**Parameters**
+1. `channel : integer` - The channel to play at. 8 channels are available at values 0-7
+2. `note : integer` - The note value to pitch the instrument at. Value 36 corresponds to C-3
+3. `instrument : Instrument` - The instrument to be played
+
+## `playPitch(channel, pitch, instrument)`
+Plays an absolute pitch value using a specified instrument at a specified channel
+
+**Parameters**
+1. `channel : integer` - The channel to play at. 8 channels are available at values 0-7
+2. `pitch : number` - The rate at which to play the instrument or sample. 1.0 means normal playback
+3. `instrument : Instrument` - The instrument to be played
+
+## `off(channel)`
+Triggers a release of an instrument currently playing on a specified channel
+
+**Parameters**
+1. `channel : integer` - The channel to trigger the release at
+
+## `stop(channel)`
+Hard stops any sound playing on a specified channel
+
+**Parameters**
+1. `channel : integer` - The channel to stop playing
+
+## `stopAll()`
+Stops all sounds playing
+
+## `volume(channel, volume, [relative])`
+Changes the volume of an instrument currently playing on a specified channel
+
+**Parameters**
+1. `channel : integer` - The currently playing channel to change
+2. `volume : number` - The volume value ranging 0.0-1.0
+3. `relative : boolean` - Whether the value should be added relative to the current volume or not. Defaults to false
+
+## `pitch(channel, pitch, [relative])`
+Changes the pitch of an instrument currently playing on a specified channel
+
+**Parameters**
+1. `channel : integer` - The currently playing channel to change
+2. `pitch : number` - The pitch value
+3. `relative : boolean` - Whether the value should be added relative to the current pitch or not. Defaults to false
+
+## `Instrument`
+Instrument objects have the following attributes which can be read and set:
+
+- `wave : integer` - The wave sample number assigned to the instrument
+- `volume : number` - Overall instrument volume in range 0.0-1.0
+- `attack : integer` - ADSR envelope attack value in milliseconds
+- `decay : integer` - ADSR envelope decay value in milliseconds
+- `sustain : number` - ADSR envelope sustain value in range 0.0-1.0
+- `release : integer` - ADSR envelope release value in milliseconds
+- `table_mode : integer` - How the wavetable will be swept
+- `table_start : integer` - Wavetable slice to start sweep at
+-  `table_playrate : integer` - The number of samples to wait before advancing the wavetable sweep, lower numbers mean faster sweep, can be negative
+-  `table_end : integer` - Wavetable slice to end sweep at
+
+## Constants
+
+### `presets`
+- `square`
+- `thin`
+- `string`
+- `violin`
+- `voice`
+- `pluck`
+- `pulse`
+- `warp`
+- `sine`
+- `triangle`
+
+### `drums`
+- `kick1`
+- `kick2`
+- `snare1`
+- `snare2`
+- `hihat`
+- `tom`
+- `cowbell`
+
+### `tableModes`
+- `single` - Treats the wavetable as a single sample, like drums. Playback ends once the first slice is played
+- `oneShot` - Sweeps the wavetable from start to end, then stops sweep at the end
+- `pingPong` - Sweeps the wavetable, switching directions whenever end or start are reached
+- `loop` - Sweeps the wavetable in a single direction, resetting the sweep from the other side of the loop once the end is reached

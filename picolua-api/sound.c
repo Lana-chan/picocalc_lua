@@ -110,7 +110,7 @@ int l_sound_setup(lua_State* L) {
 		enum TABLE_MODE table_mode = luaL_optinteger(L, 7, 0);
 		if (table_mode >= TABLE_LOOP) luaL_argerror(L, 7, "wavetable mode outside bounds");
 		uint16_t table_start = luaL_optinteger(L, 8, 0);
-		int16_t table_playrate = luaL_optinteger(L, 9, 0);
+		int16_t table_playrate = luaL_optinteger(L, 9, 500);
 		uint16_t table_len;
 		sound_getsampledata(wave, &table_len, NULL);
 		uint16_t table_end = luaL_optinteger(L, 10, table_len-1);
@@ -184,7 +184,7 @@ int luaopen_sound(lua_State *L) {
 
 	static const luaL_Reg soundlib_funcs [] = {
 		{"play", l_sound_playnote},
-		{"playpitch", l_sound_playpitch},
+		{"playPitch", l_sound_playpitch},
 		{"stop", l_sound_stop},
 		{"stopAll", l_sound_stopall},
 		{"off", l_sound_off},
@@ -200,6 +200,13 @@ int luaopen_sound(lua_State *L) {
 	luaL_setfuncs(L, soundlib_inst, 0);
 
 	lua_setfield(L, -2, instrument);
+
+	lua_newtable(L);
+	lua_pushintegerconstant(L, "single", TABLE_SINGLE);
+	lua_pushintegerconstant(L, "oneShot", TABLE_ONESHOT);
+	lua_pushintegerconstant(L, "pingPong", TABLE_PINGPONG);
+	lua_pushintegerconstant(L, "loop", TABLE_LOOP);
+	lua_setfield(L, -2, "tableModes");
 	
 	// instrument defaults
 	lua_newtable(L);
