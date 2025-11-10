@@ -70,3 +70,4 @@ void sound_setvolume(uint8_t ch, float volume, bool relative);
 void sound_setpitch(uint8_t ch, float pitch, bool relative);
 void sound_stopall();
 const int16_t* sound_getsampledata(uint8_t wave, uint16_t* table_len, uint16_t* sample_len);
+const uint8_t sound_getsamplecount();

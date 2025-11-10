@@ -220,7 +220,7 @@ void sound_playnote(uint8_t ch, int note, instrument_t *inst) {
 
 void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 	if (ch >= CHANNELS) return;
-	if (inst->wave >= sizeof(sample_waves)/sizeof(void*)) return;
+	if (inst->wave >= sound_getsamplecount()) return;
 
 	const int16_t *sample = sample_waves[inst->wave];
 	schedule_chs[ch].sample = (sample + 2);
@@ -304,4 +304,8 @@ const int16_t* sound_getsampledata(uint8_t wave, uint16_t* table_len, uint16_t* 
 	if (table_len) *table_len = (uint16_t)*(sample);
 	if (sample_len) *sample_len = (uint16_t)*(sample+1);
 	return (sample+2);
+}
+
+const uint8_t sound_getsamplecount() {
+	return sizeof(sample_waves)/sizeof(void*);
 }
