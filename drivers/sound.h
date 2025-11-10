@@ -63,3 +63,5 @@ void sound_playnote(uint8_t ch, int note, instrument_t *inst);
 void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst);
 void sound_stop(uint8_t ch);
 void sound_off(uint8_t ch);
+void sound_setvolume(uint8_t ch, float volume, bool relative);
+void sound_setpitch(uint8_t ch, float pitch, bool relative);

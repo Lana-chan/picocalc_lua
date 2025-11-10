@@ -41,6 +41,30 @@ int l_sound_off(lua_State* L) {
 	return 0;
 }
 
+int l_sound_setvolume(lua_State *L) {
+	int ch = luaL_checkinteger(L, 1);
+	float volume = luaL_checknumber(L, 2);
+	bool relative = false;
+	if (lua_type(L, 3) == LUA_TBOOLEAN) {
+		if (lua_toboolean(L, 3)) relative = true;
+	}
+	
+	sound_setvolume(ch, volume, relative);
+	return 0;
+}
+
+int l_sound_setpitch(lua_State *L) {
+	int ch = luaL_checkinteger(L, 1);
+	float pitch = luaL_checknumber(L, 2);
+	bool relative = false;
+	if (lua_type(L, 3) == LUA_TBOOLEAN) {
+		if (lua_toboolean(L, 3)) relative = true;
+	}
+	
+	sound_setpitch(ch, pitch, relative);
+	return 0;
+}
+
 int l_sound_setup(lua_State* L) {
 	int wave = luaL_optinteger(L, 1, 0);
 	float volume = luaL_optnumber(L, 2, 1);
@@ -79,6 +103,8 @@ int luaopen_sound(lua_State *L) {
 		{"playpitch", l_sound_playpitch},
 		{"stop", l_sound_stop},
 		{"off", l_sound_off},
+		{"volume", l_sound_setvolume},
+		{"pitch", l_sound_setpitch},
 		{"instrument", l_sound_setup},
 		{NULL, NULL}
 	};

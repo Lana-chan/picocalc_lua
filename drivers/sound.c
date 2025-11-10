@@ -27,6 +27,7 @@ static sound_channel_t schedule_chs[CHANNELS];
 
 #define SGN(x) (x > 0 ? 1 : (x < 0 ? -1 : 0))
 #define ABS(x) (x > 0 ? x : -x)
+#define CLAMP(x, a, b) (x < a ? a : (x > b ? b : x))
 
 static int16_t sound_process(sound_channel_t* ch) {
 	float amp;
@@ -81,8 +82,6 @@ static int16_t sound_process(sound_channel_t* ch) {
 
 	return out;
 }
-
-#define CLAMP(x, a, b) (x < a ? a : (x > b ? b : x))
 
 static void sound_fillbuffer(uint16_t* buffer) {
 	for (uint16_t i = 0; i < SOUND_BUFFER_SIZE; i++) {
@@ -229,10 +228,10 @@ void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 	schedule_chs[ch].counter = 0;
 	schedule_chs[ch].counter_released = 0;
 	schedule_chs[ch].playing = false;
-	schedule_chs[ch].volume = inst->volume;
+	schedule_chs[ch].volume = CLAMP(inst->volume, 0.0, 1.0);
 	schedule_chs[ch].attack_cnt = inst->attack * BITRATE / 1000;
 	schedule_chs[ch].decay_cnt = inst->decay * BITRATE / 1000;
-	schedule_chs[ch].sustain = inst->sustain;
+	schedule_chs[ch].sustain = CLAMP(inst->sustain, 0.0, 1.0);
 	schedule_chs[ch].release_cnt = inst->release * BITRATE / 1000;
 
 	schedule_chs[ch].table_len = (uint16_t)*(sample);
@@ -258,4 +257,28 @@ void sound_stop(uint8_t ch) {
 	if (ch >= CHANNELS) return;
 
 	sound_chs[ch].playing = false;
+}
+
+void sound_setvolume(uint8_t ch, float volume, bool relative) {
+	if (ch >= CHANNELS) return;
+
+	if (sound_chs[ch].playing) {
+		if (relative) {
+			sound_chs[ch].volume = CLAMP(sound_chs[ch].volume + volume, 0.0, 1.0);
+		} else {
+			sound_chs[ch].volume = CLAMP(volume, 0.0, 1.0);
+		}
+	}
+}
+
+void sound_setpitch(uint8_t ch, float pitch, bool relative) {
+	if (ch >= CHANNELS) return;
+
+	if (sound_chs[ch].playing) {
+		if (relative) {
+			sound_chs[ch].sample_pos_increment += pitch * PITCH_RESOLUTION;
+		} else {
+			sound_chs[ch].sample_pos_increment = pitch * PITCH_RESOLUTION;
+		}
+	}
 }
