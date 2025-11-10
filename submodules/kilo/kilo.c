@@ -18,6 +18,7 @@
 #include "term.h"
 #include "lcd.h"
 #include "fs.h"
+#include "sound.h"
 
 /*** defines ***/
 
@@ -1014,6 +1015,7 @@ void runProgram() {
 		lua_writestringerror("%s\n", msg);
 	}
 
+	sound_stopall();
 	lua_getglobal(L_state, "collectgarbage");
 	lua_pcall(L_state, 0, 1, 0);
 	

@@ -75,7 +75,7 @@ static int l_term_setBackgroundColor(lua_State* L) {
 static int l_term_write(lua_State* L) {
 	size_t len;
 	const char* text = luaL_checklstring(L, 1, &len);
-	term_write(text, len);
+	stdio_picocalc_out_chars(text, len);
 	return 0;
 }
 

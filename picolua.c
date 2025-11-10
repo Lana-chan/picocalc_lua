@@ -13,6 +13,7 @@
 #include "drivers/term.h"
 #include "drivers/keyboard.h"
 #include "drivers/fs.h"
+#include "drivers/sound.h"
 #include "drivers/multicore.h"
 #include "picolua-api/sys.h"
 
@@ -24,6 +25,7 @@ int main() {
 	stdio_picocalc_init(); 
 	fs_init();
 	multicore_init();
+	sound_init();
 
 	multicore_launch_core1(lua_main);
 
@@ -37,9 +39,9 @@ int main() {
 			atomic_store(&fs_needs_remount, false);
 		}
 		#if PICO_RP2040
-		sleep_ms(10);
+		//sleep_ms(10);
 		#elif PICO_RP2350
-		busy_wait_ms(10);
+		//busy_wait_ms(10);
 		#endif
 	}
 }

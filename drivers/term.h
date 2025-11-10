@@ -33,6 +33,5 @@ void term_set_fg(u16 color);
 void term_set_bg(u16 color);
 bool term_get_blinking_cursor();
 void term_set_blinking_cursor(bool enabled);
-void term_write(const char* text, size_t len);
 void term_blit(const char* text, const char* fg, const char* bg);
 int term_readline(char* prompt, char* buffer, int max_length, history_t* history);
