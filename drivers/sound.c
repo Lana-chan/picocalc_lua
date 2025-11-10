@@ -61,20 +61,21 @@ static int16_t sound_process(sound_channel_t* ch) {
 		else ch->sample_pos %= ch->sample_len * PITCH_RESOLUTION;
 	}
 	
-	if (ch->counter % ABS(ch->table_playtarget) == 0) {
-		ch->table_pos += SGN(ch->table_playtarget);
-		if (ch->table_pos >= ch->table_len) {
+	if (ch->counter % ABS(ch->table_playrate) == 0) {
+		ch->table_pos += SGN(ch->table_playrate);
+		if ((SGN(ch->table_playrate) == 1 && ch->table_pos >= ch->table_end) || 
+				SGN(ch->table_playrate) == -1 && ch->table_pos <= ch->table_start) {
 			switch (ch->table_mode) {
 				case TABLE_ONESHOT:
-					ch->table_pos -= SGN(ch->table_playtarget);
-					ch->table_playtarget = 0;
+					ch->table_pos -= SGN(ch->table_playrate);
+					ch->table_playrate = 0;
 					break;
 				case TABLE_PINGPONG:
-					ch->table_pos -= SGN(ch->table_playtarget);
-					ch->table_playtarget *= -1;
+					ch->table_pos -= SGN(ch->table_playrate);
+					ch->table_playrate *= -1;
 					break;
 				case TABLE_LOOP:
-					ch->table_pos = (ch->table_playtarget > 0 ? 0 : ch->table_len-1);
+					ch->table_pos = (ch->table_playrate > 0 ? ch->table_start : ch->table_end);
 					break;
 			}
 		}
@@ -236,9 +237,18 @@ void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 
 	schedule_chs[ch].table_len = (uint16_t)*(sample);
 	schedule_chs[ch].table_mode = inst->table_mode;
-	schedule_chs[ch].table_pos = inst->table_pos % schedule_chs[ch].table_len;
+	schedule_chs[ch].table_start = inst->table_start % schedule_chs[ch].table_len;
+	schedule_chs[ch].table_end = inst->table_end % schedule_chs[ch].table_len;
+	schedule_chs[ch].table_pos = schedule_chs[ch].table_start;
 	schedule_chs[ch].table_playcount = 0;
-	schedule_chs[ch].table_playtarget = inst->table_playtarget;
+	schedule_chs[ch].table_playrate = inst->table_playrate;
+
+	if (schedule_chs[ch].table_start > schedule_chs[ch].table_end) {
+		uint16_t tmp = schedule_chs[ch].table_start;
+		schedule_chs[ch].table_start = schedule_chs[ch].table_end;
+		schedule_chs[ch].table_end = tmp;
+		schedule_chs[ch].table_playrate *= -1;
+	}
 
 	schedule_chs[ch].playing = true;
 	schedule_chs[ch].start_at = get_sampletime_correction();
@@ -287,4 +297,11 @@ void sound_stopall() {
 	for (int n = 0; n < CHANNELS; n++) {
 		sound_chs[n].playing = false;
 	}
+}
+
+const int16_t* sound_getsampledata(uint8_t wave, uint16_t* table_len, uint16_t* sample_len) {
+	const int16_t *sample = sample_waves[wave];
+	if (table_len) *table_len = (uint16_t)*(sample);
+	if (sample_len) *sample_len = (uint16_t)*(sample+1);
+	return (sample+2);
 }

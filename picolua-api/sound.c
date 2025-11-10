@@ -78,8 +78,11 @@ int l_sound_setup(lua_State* L) {
 	float sustain = luaL_optnumber(L, 5, 0);
 	float release = luaL_optnumber(L, 6, 0);
 	enum TABLE_MODE table_mode = luaL_optinteger(L, 7, 0);
-	uint16_t table_pos = luaL_optinteger(L, 8, 0);
-	int16_t table_playtarget = luaL_optinteger(L, 9, 0);
+	uint16_t table_start = luaL_optinteger(L, 8, 0);
+	int16_t table_playrate = luaL_optinteger(L, 9, 0);
+	uint16_t table_len;
+	sound_getsampledata(wave, &table_len, NULL);
+	uint16_t table_end = luaL_optinteger(L, 10, table_len-1);
 
 	instrument_t *inst = lua_newuserdata(L, sizeof(instrument_t));
 	luaL_getmetatable(L, instrument);
@@ -92,8 +95,9 @@ int l_sound_setup(lua_State* L) {
 	inst->sustain = sustain;
 	inst->release = release;
 	inst->table_mode = table_mode;
-	inst->table_pos = table_pos;
-	inst->table_playtarget = table_playtarget;
+	inst->table_start = table_start;
+	inst->table_end = table_end;
+	inst->table_playrate = table_playrate;
 	
 	return 1;
 }

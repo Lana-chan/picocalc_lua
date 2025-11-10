@@ -41,8 +41,10 @@ typedef struct {
 	enum TABLE_MODE table_mode;
 	uint16_t table_len;
 	uint16_t table_pos;
+	uint16_t table_start;
+	uint16_t table_end;
 	int16_t table_playcount;
-	int16_t table_playtarget;
+	int16_t table_playrate;
 } sound_channel_t;
 
 typedef struct {
@@ -53,8 +55,9 @@ typedef struct {
 	float sustain;
 	uint16_t release;
 	enum TABLE_MODE table_mode;
-	uint16_t table_pos;
-	int16_t table_playtarget;
+	uint16_t table_start;
+	uint16_t table_end;
+	int16_t table_playrate;
 } instrument_t;
 
 void sound_init();
@@ -66,3 +69,4 @@ void sound_off(uint8_t ch);
 void sound_setvolume(uint8_t ch, float volume, bool relative);
 void sound_setpitch(uint8_t ch, float pitch, bool relative);
 void sound_stopall();
+const int16_t* sound_getsampledata(uint8_t wave, uint16_t* table_len, uint16_t* sample_len);
