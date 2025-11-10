@@ -37,17 +37,7 @@ uint32_t get_system_mhz() {
 
 bool set_system_mhz(uint32_t clk) {
 	if (set_sys_clock_khz(clk * 1000ull, true)) {
-		clock_configure(
-			clk_peri,
-			0,                                                // No glitchless mux
-			CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, // System PLL on AUX mux
-			clk * 1000000ull,                               // Input frequency
-			clk * 1000000ull                                // Output (must be same as no divider)
-		);
-		spi_set_baudrate(spi1, clk * 500000ull);
 		sound_setclk();
-		fs_unmount();
-		fs_mount();
 		return true;
 	}
 	return false;
