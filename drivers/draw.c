@@ -62,11 +62,7 @@ void draw_clear_local() {
 	lcd_scroll(0);
 }
 
-void draw_point_local(i32 x, i32 y, Color color) {
-	if (x >= 0 && x < LCD_WIDTH && y >= 0 && y < MEM_HEIGHT) lcd_point(color, x, y);
-}
-
-void draw_fill_rect_local(i32 x, i32 y, i32 width, i32 height, Color color) {
+void draw_fill_rect_local(i16 x, i16 y, i16 width, i16 height, Color color) {
 	if (x < 0) {
 		width += x;
 		x = 0;
@@ -81,93 +77,51 @@ void draw_fill_rect_local(i32 x, i32 y, i32 width, i32 height, Color color) {
 	lcd_fill(color, x, y, width, height);
 }
 
-void draw_rect_local(i32 x, i32 y, i32 width, i32 height, Color color) {
+void draw_rect_local(i16 x, i16 y, i16 width, i16 height, Color color) {
 	draw_horizontal_line(x, x + width, y, color);
-	for (i32 i = 1; i < height - 1; i++) {
+	for (i16 i = 1; i < height - 1; i++) {
 		draw_point(x, y + i, color);
 		draw_point(x + width - 1, y + i, color);
 	}
 	draw_horizontal_line(x, x + width, y + height - 1, color);
 }
 
-/*void draw_blit(i32 x, i32 y, i32 x_source, i32 y_source, i32 width, i32 height, Color* source, i32 source_width, i32 source_height) {
-	if (x_source < 0) {
-		width += x_source;
-		x_source = 0;
-	}
-	if (y_source < 0) {
-		height += y_source;
-		y_source = 0;
-	}
-	if (x_source + width > source_width) width = source_width - x_source;
-	if (y_source + height > source_height) height = source_height - y_source;
-	if (x < 0) {
-		width += x;
-		x_source -= x;
-		x = 0;
-	}
-	if (y < 0) {
-		height += y;
-		y_source -= y;
-		y = 0;
-	}
-	if (x + width >= WIDTH) width = WIDTH - x; // WARNING: x might be larger than WIDTH, resulting in negative width
-	if (y + height >= MEM_HEIGHT) height = MEM_HEIGHT - y;
-	for (int j = 0; j < height; j++) {
-		int offset = (y + j) * WIDTH + x;
-		int source_offset = (y_source + j) * source_width + x_source;
-		if (width > 0) lcd_fifo_draw(source + source_offset, x, y + j, width, height);
+void draw_sprite_local(i16 x, i16 y, Spritesheet* sprite, u8 spriteid, u8 flip) {
+	if (x <= -sprite->width || y <= -sprite->height || x >= LCD_WIDTH || y >= LCD_HEIGHT) return;
+	
+	i16 x_source = 0; // clip left
+	if (x < 0) { x_source = -x; x = 0; }	
+	i16 y_source = 0; // clip top
+	if (y < 0) { y_source = -y; y = 0; }
+	i16 w_stop = sprite->width - x_source; // clip right
+	if (x + sprite->width >= LCD_WIDTH) { w_stop -= x + sprite->width - LCD_WIDTH - 1; }
+	i16 h_stop = sprite->height - y_source; // clip bottom
+	if (y + sprite->height >= LCD_HEIGHT) { h_stop -= y + sprite->height - LCD_HEIGHT - 1; }
+
+	int y_offset;
+	int spr_offset = sprite->width * sprite->height * (spriteid % sprite->count);
+	Color c;
+	for (int j = 0; j < h_stop; j++) {
+		if (flip & DRAW_MIRROR_V) y_offset = (sprite->height - j - y_source) * sprite->width;
+		else y_offset = (j + y_source) * sprite->width;
+		for (int i = 0; i < w_stop; i++) {
+			if (flip & DRAW_MIRROR_H) c = sprite->bitmap[spr_offset + y_offset + (sprite->width - i - x_source)];
+			else c = sprite->bitmap[spr_offset + y_offset + i + x_source];
+			if (c != sprite->mask) draw_point(x + i, y + j, c);
+		}
 	}
 }
 
-void blit_masked_flipped(i32 x, i32 y, i32 x_source, i32 y_source, i32 width, i32 height, Color mask, u8 flip, Color* source, i32 source_width, i32 source_height) {
-	if (x_source < 0) {
-		width += x_source;
-		x_source = 0;
-	}
-	if (y_source < 0) {
-		height += y_source;
-		y_source = 0;
-	}
-	if (x_source + width > source_width) width = source_width - x_source;
-	if (y_source + height > source_height) height = source_height - y_source;
-	if (x < 0) {
-		width += x;
-		x_source -= x;
-		x = 0;
-	}
-	if (y < 0) {
-		height += y;
-		y_source -= y;
-		y = 0;
-	}
-	if (x + width >= WIDTH) width = WIDTH - x; // WARNING: x might be larger than WIDTH, resulting in negative width
-	if (y + height >= MEM_HEIGHT) height = MEM_HEIGHT - y;
-	for (int j = 0; j < height; j++) {
-		int offset = (y + j) * WIDTH + x;
-		int source_offset = 0;
-		if (flip & MIRROR_V) source_offset = (y_source + height - j - 1) * source_width + x_source;
-		else source_offset = (y_source + j) * source_width + x_source;
-		for (int i = 0; i < width; i++) {
-			if (source[source_offset + i] != mask) {
-				draw_point(x + i, y + j, source[source_offset + i]);
-				if (flip & MIRROR_H) draw_point(x + width - i - 1, y + j, source[source_offset + i]);
-				else draw_point(x + i, y + j, source[source_offset + i]);
-			}
-		}
-	}
-}*/
-
-void draw_line_local(i32 x0, i32 y0, i32 x1, i32 y1, Color color) {
-	i32 dx =  abs(x1-x0);
-	i32 sx = x0 < x1 ? 1 : -1;
-	i32 dy = -abs(y1-y0);
-	i32 sy = y0<y1 ? 1 : -1;
-	i32 err = dx + dy;  /* error value e_xy */
+void draw_line_local(i16 x0, i16 y0, i16 x1, i16 y1, Color color) {
+	i16 dx =  abs(x1-x0);
+	i16 sx = x0 < x1 ? 1 : -1;
+	i16 dy = -abs(y1-y0);
+	i16 sy = y0<y1 ? 1 : -1;
+	i16 err = dx + dy;  /* error value e_xy */
 	while (1) {   /* loop */
 		draw_point(x0, y0, color);
 		if (x0 == x1 && y0 == y1) break;
-		i32 e2 = 2*err;
+		i16 e2 = 2*err;
 		if (e2 >= dy) { /* e_xy+e_x > 0 */
 			err += dy;
 			x0 += sx;
@@ -179,8 +133,8 @@ void draw_line_local(i32 x0, i32 y0, i32 x1, i32 y1, Color color) {
 	}
 }
 
-void draw_circle_local(i32 xm, i32 ym, i32 r, Color color) {
-	 i32 x = -r, y = 0, err = 2 - 2 * r; /* II. Quadrant */
+void draw_circle_local(i16 xm, i16 ym, i16 r, Color color) {
+	 i16 x = -r, y = 0, err = 2 - 2 * r; /* II. Quadrant */
 	 do {
 			draw_point(xm - x, ym + y, color); /*   I. Quadrant */
 			draw_point(xm - y, ym - x, color); /*  II. Quadrant */
@@ -192,8 +146,8 @@ void draw_circle_local(i32 xm, i32 ym, i32 r, Color color) {
 	 } while (x < 0);
 }
 
-void draw_fill_circle_local(i32 xm, i32 ym, i32 r, Color color) {
-	 i32 x = -r, y = 0, err = 2 - 2 * r; /* II. Quadrant */
+void draw_fill_circle_local(i16 xm, i16 ym, i16 r, Color color) {
+	 i16 x = -r, y = 0, err = 2 - 2 * r; /* II. Quadrant */
 	 do {
 			draw_horizontal_line(xm + x, xm - x, ym - y, color);
 			draw_horizontal_line(xm + x, xm - x, ym + y, color);
@@ -377,13 +331,6 @@ int draw_fifo_receiver(uint32_t message) {
 	uint32_t x1, y1, c1, x2, y2, c2, x3, y3, c3;
 	
 	switch (message) {
-		case FIFO_DRAW_POINT:
-			x1 = multicore_fifo_pop_blocking_inline();
-			y1 = multicore_fifo_pop_blocking_inline();
-			c1 = multicore_fifo_pop_blocking_inline();
-			draw_point_local((i32)x1, (i32)y1, (Color)c1);
-			return 1;
-
 		case FIFO_DRAW_CLEAR:
 			draw_clear_local();
 			return 1;
@@ -394,7 +341,7 @@ int draw_fifo_receiver(uint32_t message) {
 			x2 = multicore_fifo_pop_blocking_inline();
 			y2 = multicore_fifo_pop_blocking_inline();
 			c1 = multicore_fifo_pop_blocking_inline();
-			draw_rect_local((i32)x1, (i32)y1, (i32)x2, (i32)y2, (Color)c1);
+			draw_rect_local((i16)x1, (i16)y1, (i16)x2, (i16)y2, (Color)c1);
 			return 1;
 
 		case FIFO_DRAW_RECTFILL:
@@ -403,7 +350,7 @@ int draw_fifo_receiver(uint32_t message) {
 			x2 = multicore_fifo_pop_blocking_inline();
 			y2 = multicore_fifo_pop_blocking_inline();
 			c1 = multicore_fifo_pop_blocking_inline();
-			draw_fill_rect_local((i32)x1, (i32)y1, (i32)x2, (i32)y2, (Color)c1);
+			draw_fill_rect_local((i16)x1, (i16)y1, (i16)x2, (i16)y2, (Color)c1);
 			return 1;
 
 		case FIFO_DRAW_LINE:
@@ -412,7 +359,7 @@ int draw_fifo_receiver(uint32_t message) {
 			x2 = multicore_fifo_pop_blocking_inline();
 			y2 = multicore_fifo_pop_blocking_inline();
 			c1 = multicore_fifo_pop_blocking_inline();
-			draw_line_local((i32)x1, (i32)y1, (i32)x2, (i32)y2, (Color)c1);
+			draw_line_local((i16)x1, (i16)y1, (i16)x2, (i16)y2, (Color)c1);
 			return 1;
 
 		case FIFO_DRAW_CIRC:
@@ -420,7 +367,7 @@ int draw_fifo_receiver(uint32_t message) {
 			y1 = multicore_fifo_pop_blocking_inline();
 			x2 = multicore_fifo_pop_blocking_inline();
 			c1 = multicore_fifo_pop_blocking_inline();
-			draw_circle_local((i32)x1, (i32)y1, (i32)x2, (Color)c1);
+			draw_circle_local((i16)x1, (i16)y1, (i16)x2, (Color)c1);
 			return 1;
 
 		case FIFO_DRAW_CIRCFILL:
@@ -428,7 +375,7 @@ int draw_fifo_receiver(uint32_t message) {
 			y1 = multicore_fifo_pop_blocking_inline();
 			x2 = multicore_fifo_pop_blocking_inline();
 			c1 = multicore_fifo_pop_blocking_inline();
-			draw_fill_circle_local((i32)x1, (i32)y1, (i32)x2, (Color)c1);
+			draw_fill_circle_local((i16)x1, (i16)y1, (i16)x2, (Color)c1);
 			return 1;
 
 		case FIFO_DRAW_POLY:
@@ -458,6 +405,15 @@ int draw_fifo_receiver(uint32_t message) {
 			x3 = multicore_fifo_pop_blocking_inline();
 			y3 = multicore_fifo_pop_blocking_inline();
 			draw_triangle_shaded_local((Color)c1, (float)x1, (float)y1, (Color)c2, (float)x2, (float)y2, (Color)c3, (float)x3, (float)y3);
+			return 1;
+
+		case FIFO_DRAW_SPRITE:
+			x1 = multicore_fifo_pop_blocking_inline();
+			y1 = multicore_fifo_pop_blocking_inline();
+			c1 = multicore_fifo_pop_blocking_inline();
+			x2 = multicore_fifo_pop_blocking_inline();
+			y2 = multicore_fifo_pop_blocking_inline();
+			draw_sprite_local((i16)x1, (i16)y1, (Spritesheet*)c1, (u8)x2, (u8)y2);
 			return 1;
 
 		default:

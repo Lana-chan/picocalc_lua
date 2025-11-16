@@ -29,6 +29,7 @@ enum FIFO_CODES {
 	FIFO_DRAW_POLY,
 	FIFO_DRAW_POLYFILL,
 	FIFO_DRAW_TRI,
+	FIFO_DRAW_SPRITE,
 };
 
 void multicore_fifo_push_string(const char* string, size_t len);

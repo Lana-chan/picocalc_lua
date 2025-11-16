@@ -145,11 +145,11 @@ static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
 }
 
 static void lcd_direct_point(u16 color, int x, int y) {
-	lcd_fill(color, x, y, 1, 1);
+	lcd_direct_fill(color, x, y, 1, 1);
 }
 
 static void lcd_direct_clear() {
-	lcd_fill(0, 0, 0, LCD_WIDTH, MEM_HEIGHT);
+	lcd_direct_fill(0, 0, 0, LCD_WIDTH, MEM_HEIGHT);
 }
 
 static void lcd_psram_draw(u16* pixels, int x, int y, int width, int height) {
