@@ -5,13 +5,17 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define LCD_WIDTH 320
+#define LCD_WIDTH  320
 #define LCD_HEIGHT 320
 #define MEM_HEIGHT 480
 
 #define LCD_BUFFERMODE_DIRECT 0
-#define LCD_BUFFERMODE_PSRAM 1
-#define LCD_BUFFERMODE_RAM 2
+#define LCD_BUFFERMODE_PSRAM  1
+#define LCD_BUFFERMODE_RAM    2
+
+#define LCD_ALIGN_LEFT   0
+#define LCD_ALIGN_CENTER 1
+#define LCD_ALIGN_RIGHT  2
 
 #define RED(a)      ((((a) & 0xf800) >> 11) << 3)
 #define GREEN(a)    ((((a) & 0x07e0) >> 5) << 2)
@@ -28,7 +32,7 @@ void lcd_clear_local();
 bool lcd_buffer_enable_local(int mode);
 void lcd_buffer_blit_local();
 void lcd_draw_char_local(int x, int y, u16 fg, u16 bg, char c);
-void lcd_draw_text_local(int x, int y, u16 fg, u16 bg, const char* text, size_t len);
+void lcd_draw_text_local(int x, int y, u16 fg, u16 bg, const char* text, size_t len, u8 align);
 void lcd_printf_local(int x, int y, u16 fg, u16 bg, const char* format, ...);
 void lcd_scroll_local(int lines);
 void lcd_clear_local();
@@ -125,14 +129,15 @@ static inline void lcd_draw_char(int x, int y, u16 fg, u16 bg, char c) {
 	}
 }
 
-static inline void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
-	if (get_core_num() == 0) lcd_draw_text_local(x, y, fg, bg, text, len);
+static inline void lcd_draw_text(int x, int y, u16 fg, u16 bg, const char* text, size_t len, u8 align) {
+	if (get_core_num() == 0) lcd_draw_text_local(x, y, fg, bg, text, len, align);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_LCD_TEXT);
 		multicore_fifo_push_blocking_inline(x);
 		multicore_fifo_push_blocking_inline(y);
 		multicore_fifo_push_blocking_inline(fg);
 		multicore_fifo_push_blocking_inline(bg);
+		multicore_fifo_push_blocking_inline(align);
 		multicore_fifo_push_string(text, len);
 	}
 }

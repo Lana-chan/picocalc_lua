@@ -4,7 +4,18 @@
 #include "multicore.h"
 #include "lcd.h"
 
+#define DRAW_MIRROR_H 1
+#define DRAW_MIRROR_V 2
+
 typedef u16 Color;
+
+typedef struct {
+	i16 width;
+	i16 height;
+	u8 count;
+	Color* bitmap;
+	Color mask;
+} Spritesheet;
 
 Color draw_color_from_hsv(u8 h, u8 s, u8 v);
 void draw_color_to_hsv(Color c, u8* h, u8* s, u8* v);
@@ -13,23 +24,19 @@ Color draw_color_subtract(Color c1, Color c2);
 Color draw_color_mul(Color c, float factor);
 
 void draw_clear_local();
-void draw_rect_local(i32 x, i32 y, i32 width, i32 height, Color color);
-void draw_fill_rect_local(i32 x, i32 y, i32 width, i32 height, Color color);
-void draw_line_local(i32 x0, i32 y0, i32 x1, i32 y1, Color color);
-void draw_circle_local(i32 xm, i32 ym, i32 r, Color color);
-void draw_fill_circle_local(i32 xm, i32 ym, i32 r, Color color);
+void draw_sprite_local(i16 x, i16 y, Spritesheet* sprite, u8 spriteid, u8 flip);
+void draw_rect_local(i16 x, i16 y, i16 width, i16 height, Color color);
+void draw_fill_rect_local(i16 x, i16 y, i16 width, i16 height, Color color);
+void draw_line_local(i16 x0, i16 y0, i16 x1, i16 y1, Color color);
+void draw_circle_local(i16 xm, i16 ym, i16 r, Color color);
+void draw_fill_circle_local(i16 xm, i16 ym, i16 r, Color color);
 void draw_polygon_local(int n, float* points, Color color);
 void draw_fill_polygon_local(int n, float* points, Color color);
 void draw_triangle_shaded_local(Color c1, float x1, float y1, Color c2, float x2, float y2, Color c3, float x3, float y3);
 
 int draw_fifo_receiver(uint32_t message);
 
-#define MIRROR_V 1
-#define MIRROR_H 2
-void draw_blit(i32 x, i32 y, i32 source_x, i32 source_y, i32 width, i32 height, Color* source, i32 source_width, i32 source_height);
-void draw_blit_masked_flipped(i32 x, i32 y, i32 source_x, i32 source_y, i32 width, i32 height, Color mask, u8 flip, Color* source, i32 source_width, i32 source_height);
-
-static inline void draw_point(i32 x, i32 y, Color color) {
+static inline void draw_point(i16 x, i16 y, Color color) {
 	if (get_core_num() == 0) lcd_point_local(color, x, y);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_LCD_POINT);
@@ -46,7 +53,7 @@ static inline void draw_clear() {
 	}
 }
 
-static inline void draw_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
+static inline void draw_rect(i16 x, i16 y, i16 width, i16 height, Color color) {
 	if (get_core_num() == 0) draw_rect_local(x, y, width, height, color);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_DRAW_RECT);
@@ -58,7 +65,7 @@ static inline void draw_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
 	}
 }
 
-static inline void draw_fill_rect(i32 x, i32 y, i32 width, i32 height, Color color) {
+static inline void draw_fill_rect(i16 x, i16 y, i16 width, i16 height, Color color) {
 	if (get_core_num() == 0) draw_fill_rect_local(x, y, width, height, color);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_DRAW_RECTFILL);
@@ -70,7 +77,7 @@ static inline void draw_fill_rect(i32 x, i32 y, i32 width, i32 height, Color col
 	}
 }
 
-static inline void draw_line(i32 x0, i32 y0, i32 x1, i32 y1, Color color) {
+static inline void draw_line(i16 x0, i16 y0, i16 x1, i16 y1, Color color) {
 	if (get_core_num() == 0) draw_line_local(x0, y0, x1, y1, color);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_DRAW_LINE);
@@ -82,7 +89,7 @@ static inline void draw_line(i32 x0, i32 y0, i32 x1, i32 y1, Color color) {
 	}
 }
 
-static inline void draw_circle(i32 xm, i32 ym, i32 r, Color color) {
+static inline void draw_circle(i16 xm, i16 ym, i16 r, Color color) {
 	if (get_core_num() == 0) draw_circle_local(xm, ym, r, color);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_DRAW_CIRC);
@@ -93,7 +100,7 @@ static inline void draw_circle(i32 xm, i32 ym, i32 r, Color color) {
 	}
 }
 
-static inline void draw_fill_circle(i32 xm, i32 ym, i32 r, Color color) {
+static inline void draw_fill_circle(i16 xm, i16 ym, i16 r, Color color) {
 	if (get_core_num() == 0) draw_fill_circle_local(xm, ym, r, color);
 	else {
 		multicore_fifo_push_blocking_inline(FIFO_DRAW_CIRCFILL);
@@ -137,5 +144,17 @@ static inline void draw_triangle_shaded(Color c1, float x1, float y1, Color c2, 
 		multicore_fifo_push_blocking_inline(c3);
 		multicore_fifo_push_blocking_inline(x3);
 		multicore_fifo_push_blocking_inline(y3);
+	}
+}
+
+static inline void draw_sprite(i16 x, i16 y, Spritesheet* sprite, u8 spriteid, u8 flip) {
+	if (get_core_num() == 0) draw_sprite_local(x, y, sprite, spriteid, flip);
+	else {
+		multicore_fifo_push_blocking_inline(FIFO_DRAW_SPRITE);
+		multicore_fifo_push_blocking_inline(x);
+		multicore_fifo_push_blocking_inline(y);
+		multicore_fifo_push_blocking_inline((uint32_t)sprite);
+		multicore_fifo_push_blocking_inline(spriteid);
+		multicore_fifo_push_blocking_inline(flip);
 	}
 }

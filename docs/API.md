@@ -63,7 +63,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`blit(text, fg, bg)`](#blittext-fg-bg)
 	- [`loadFont(filename)`](#loadfontfilename)
 - [`draw` - Drawing functions](#draw---drawing-functions)
-	- [`text(x, y, fg, bg, text)`](#textx-y-fg-bg-text)
+	- [`text(x, y, text, [fg], [bg], [align])`](#textx-y-text-fg-bg-align)
 	- [`clear()`](#clear-1)
 	- [`point(x, y, color)`](#pointx-y-color)
 	- [`rect(x, y, width, height, color)`](#rectx-y-width-height-color)
@@ -76,6 +76,9 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`triangle(c1, x1, y1, c2, x2, y2, c3, x3, y3)`](#trianglec1-x1-y1-c2-x2-y2-c3-x3-y3)
 	- [`enableBuffer(mode, [dirty])`](#enablebuffermode-dirty)
 	- [`blitBuffer()`](#blitbuffer)
+	- [`loadSprites(filename, [width], [height], [mask])`](#loadspritesfilename-width-height-mask)
+	- [`blitSprite(x, y, spritesheet, [id], [flip])`](#blitspritex-y-spritesheet-id-flip)
+	- [Constants](#constants-1)
 - [`colors` - Color functions and constants](#colors---color-functions-and-constants)
 	- [`fromRGB(R, G, B)`](#fromrgbr-g-b)
 	- [`toRGB(color)`](#torgbcolor)
@@ -84,7 +87,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`add(color1, color2)`](#addcolor1-color2)
 	- [`subtract(color1, color2)`](#subtractcolor1-color2)
 	- [`multiply(color1, color2)`](#multiplycolor1-color2)
-	- [Constants](#constants-1)
+	- [Constants](#constants-2)
 - [`sound` - Programmable Sound Generator](#sound---programmable-sound-generator)
 	- [`instrument([instrument|wave], [volume], [attack], [decay], [sustain], [release], [table_mode], [table_start], [table_playrate], [table_end])`](#instrumentinstrumentwave-volume-attack-decay-sustain-release-table_mode-table_start-table_playrate-table_end)
 	- [`play(channel, note, instrument)`](#playchannel-note-instrument)
@@ -95,7 +98,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`volume(channel, volume, [relative])`](#volumechannel-volume-relative)
 	- [`pitch(channel, pitch, [relative])`](#pitchchannel-pitch-relative)
 	- [`Instrument`](#instrument)
-	- [Constants](#constants-2)
+	- [Constants](#constants-3)
 		- [`presets`](#presets)
 		- [`drums`](#drums)
 		- [`tableModes`](#tablemodes)
@@ -537,15 +540,16 @@ Loads a font from the SD card, falling back to the default built-in font in case
 
 # `draw` - Drawing functions
 
-## `text(x, y, fg, bg, text)`
+## `text(x, y, text, [fg], [bg], [align])`
 Draws text on the screen at a determined position with determined colors
 
 **Parameters**
 1. `x : number` - The horizontal position in pixels
 2. `y : number` - The vertical position in pixels
-3. `fg : number` - The foreground [`color`](#colors---color-functions-and-constants)
-4. `bg : number` - The background [`color`](#colors---color-functions-and-constants)
-5. `text : string` - The text to be written
+3. `text : string` - The text to be written
+4. `fg : number` - The foreground [`color`](#colors---color-functions-and-constants), defaults to white
+5. `bg : number` - The background [`color`](#colors---color-functions-and-constants), defaults to black
+6. `align : number` - Which way to align text, see [Constants](#constants-1). Defaults to `align_left`
 
 ## `clear()`
 Clears the drawn screen. This does not affect the terminal cursor
@@ -650,6 +654,37 @@ The RAM framebuffer is dynamically allocated when enabled and freed when disable
 
 ## `blitBuffer()`
 Blit the contents of the framebuffer to the screen
+
+## `loadSprites(filename, [width], [height], [mask])`
+Loads a spritesheet to memory for blitting sprites to the screen. Formats supported are 24bit and 32bit BMP, sprites are indexed top left to bottom right as an atlas
+
+**Parameters**
+1. `filename : string` - The path for the BMP on disk to be loaded
+2. `width : number` - The width of each individual sprite, defaults to the entire width of the image if omitted
+3. `height : number` - The height of each individual sprite, defaults to the entire width of the image if omitted
+4. `mask : number` - The [`color`](#colors---color-functions-and-constants) to be used as transparent pixels for the sprites. Defaults to `RGB(255, 0, 255)`
+
+**Returns**
+1. `spritesheet` - Spritesheet object
+
+## `blitSprite(x, y, spritesheet, [id], [flip])`
+Blits a sprite from a spritesheet onto the screen
+
+**Parameters**
+1. `x : number` - The horizontal position on the screen to blit the sprite to
+2. `y : number` - The vertical position on the screen to blit the sprite to
+3. `spritesheet : Spritesheet` - Spritesheet object containing the sprite to be drawn
+4. `id : number` - The index of the desired sprite within the spritesheet, defaults to 0
+5. `flip : number` - Bitmask for drawing the sprite flipped, see [Constants](#constants-1)
+
+## Constants
+
+* `flip_horizontal`
+* `flip_vertical`
+* `flip_both`
+* `align_left`
+* `align_center`
+* `align_right`
 
 
 # `colors` - Color functions and constants

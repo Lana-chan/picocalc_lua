@@ -145,11 +145,11 @@ static void lcd_direct_fill(u16 color, int x, int y, int width, int height) {
 }
 
 static void lcd_direct_point(u16 color, int x, int y) {
-	lcd_fill(color, x, y, 1, 1);
+	lcd_direct_fill(color, x, y, 1, 1);
 }
 
 static void lcd_direct_clear() {
-	lcd_fill(0, 0, 0, LCD_WIDTH, MEM_HEIGHT);
+	lcd_direct_fill(0, 0, 0, LCD_WIDTH, MEM_HEIGHT);
 }
 
 static void lcd_psram_draw(u16* pixels, int x, int y, int width, int height) {
@@ -375,8 +375,10 @@ void lcd_draw_char_local(int x, int y, u16 fg, u16 bg, char c) {
 	lcd_draw(font.glyph_colorbuf, x, y, font.glyph_width, font.glyph_height);
 }
 
-void lcd_draw_text_local(int x, int y, u16 fg, u16 bg, const char* text, size_t len) {
+void lcd_draw_text_local(int x, int y, u16 fg, u16 bg, const char* text, size_t len, u8 align) {
 	//if (y <= -font.glyph_height || y >= HEIGHT) return;
+	if (align == LCD_ALIGN_CENTER) x -= len * font.glyph_width / 2;
+	else if (align == LCD_ALIGN_RIGHT) x -= len * font.glyph_width;
 	for (int i = 0; i < len; i++) {
 		lcd_draw_char(x, y, fg, bg, *text);
 		x += font.glyph_width;
@@ -391,7 +393,7 @@ void lcd_printf(int x, int y, u16 fg, u16 bg, const char* format, ...) {
 	va_start(list, format);
 	int result = vsnprintf(buffer, 512, format, list);
 	if (result > -1) {
-		lcd_draw_text(x, y, fg, bg, buffer, result);
+		lcd_draw_text(x, y, fg, bg, buffer, result, LCD_ALIGN_LEFT);
 	}
 }
 
@@ -530,8 +532,9 @@ int lcd_fifo_receiver(uint32_t message) {
 			y = multicore_fifo_pop_blocking_inline();
 			fg = multicore_fifo_pop_blocking_inline();
 			bg = multicore_fifo_pop_blocking_inline();
+			c = multicore_fifo_pop_blocking_inline();
 			width = multicore_fifo_pop_string(&text);
-			lcd_draw_text_local((int)x, (int)y, (u16)fg, (u16)bg, text, width);
+			lcd_draw_text_local((int)x, (int)y, (u16)fg, (u16)bg, text, width, (u8)c);
 			free(text);
 			return 1;
 
