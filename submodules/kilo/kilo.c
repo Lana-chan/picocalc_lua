@@ -537,18 +537,25 @@ void editorInsertChar(int c) {
 }
 
 void editorInsertNewline() {
+	int new_x = 0;
 	if (E.cx == 0) {
 		editorInsertRow(E.cy, "", 0);
 	} else {
 		erow *row = &E.row[E.cy];
+		// count tab indentation in current row
+		int num_tabs = 0;
+		while (*&row->chars[num_tabs] == '\t') num_tabs++;
 		editorInsertRow(E.cy + 1, &row->chars[E.cx], row->size - E.cx);
+		new_x = num_tabs;
+		// add tabs to new row
+		while (num_tabs--) editorRowInsertChar(&E.row[E.cy+1], 0, '\t');
 		row = &E.row[E.cy];
 		row->size = E.cx;
 		row->chars[row->size] = '\0';
 		editorUpdateRow(row);
 	}
 	E.cy++;
-	E.cx = 0;
+	E.cx = new_x;
 	E.redraw_rows = true;
 }
 
