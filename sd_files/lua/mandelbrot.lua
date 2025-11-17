@@ -1,5 +1,4 @@
--- adapted from https://bisqwit.iki.fi/jutut/kuvat/programming_examples/mandelbrotbtrace.pdf
-
+-- partially adapted from https://bisqwit.iki.fi/jutut/kuvat/programming_examples/mandelbrotbtrace.pdf
 -- arrow keys, 9 and 0 to control view, escape to quit
 
 local maxIter = 64
@@ -9,11 +8,11 @@ local radius = 1
 local minX, maxX, minY, maxY
 local wid, hei = 320, 320
 
-function iterate(zr, zi, max)
+local function iterate(zr, zi, max)
 	local cnt, r, i, r2, i2, ri
 	cnt = 0
 	r,i = zr,zi
-	while( cnt < max ) do
+	while cnt < max do
 		r2 = r*r; i2 = i*i
 		if r2+i2 >= 4 then break end
 		ri = r*i
@@ -24,8 +23,8 @@ function iterate(zr, zi, max)
 	return cnt
 end
 
-function is_control_key()
-	state, _, code = keys.peek()
+local function is_control_key()
+	local state, _, code = keys.peek()
 	if state == keys.states.pressed then
 		if code == keys.up
 			or code == keys.down
@@ -43,7 +42,7 @@ function is_control_key()
 	return false
 end
 
-function drawScanlineMandelbrot(max)
+local function drawScanlineMandelbrot(max)
 	local zr, zi, cnt, clr
 	local st = chunk
 	local proc = {}
@@ -75,7 +74,7 @@ while true do
 	minX, maxX, minY, maxY = center[1]-radius, center[1]+radius, center[2]-radius, center[2]+radius
 	drawScanlineMandelbrot(maxIter)
 	while true do
-		_, _, code = keys.wait(false, true)
+		local _, _, code = keys.wait(false, true)
 		if code == keys.up then
 			center[2] = center[2] - radius * 0.25
 			break

@@ -1,3 +1,6 @@
+-- asteroids game
+-- written by maple "mavica" syrup <maple@maple.pet>
+
 local poly_ship = {{0, -10}, {5, 5}, {0, 0}, {-5, 5}, {0, -10}}
 local poly_thrust = {{-2.5, 2,5}, {0, 4}, {2.5, 2.5}}
 local poly_shot = {{0, 0}, {0, -5}}
@@ -12,7 +15,7 @@ local width = 320
 local height = 320
 
 local max_shots = 5
-local shot_speed = 5
+local shot_speed = 7
 local rock_speed = 0.6
 local rock_size = 30
 local rock_step = 10
@@ -36,15 +39,15 @@ local lives = 3
 local last_frame = 0
 local game_over = false
 
-function sign(number)
+local function sign(number)
 	return (number > 0 and 1) or (number == 0 and 0) or -1
 end
 
-function distance(x1, y1, x2, y2)
+local function distance(x1, y1, x2, y2)
 	return math.sqrt((x2-x1)^2+(y2-y1)^2)
 end
 
-function draw_rotated(shape, x, y, ang, scale, color)
+local function draw_rotated(shape, x, y, ang, scale, color)
 	processed = {}
 
 	local sin = math.sin(ang) * scale
@@ -60,15 +63,89 @@ function draw_rotated(shape, x, y, ang, scale, color)
 	draw.polygon(processed, color) 
 end
 
-function level_init()
+local shot_meta = {
+	erase = function(self)
+		draw_rotated(poly_shot, self.x, self.y, self.ang, 1, bg)
+	end,
+	update = function(self, k)
+		self.x = self.x + self.vx
+		self.y = self.y + self.vy
+		
+		if self.x > width or self.x < 0 or self.y > height or self.y < 0 then
+			self:erase()
+			table.remove(shots,k)
+		else
+			for rockid,rock in pairs(rocks) do
+				if distance(self.x, self.y, rock.x, rock.y) < rock.scale then
+					rock:hit(rockid,self,k)
+				end
+			end
+		end
+	end,
+	draw = function(self)
+		draw_rotated(poly_shot, self.x, self.y, self.ang, 1, fg)
+	end
+}
+
+local rock_meta = {} --hoist
+
+local rock_create = function(x, y, ang, size)
+	rock = {
+		x = x,
+		y = y,
+		ang = ang,
+		vx = math.sin(ang) * rock_speed,
+		vy = -math.cos(ang) * rock_speed,
+		scale = size
+	}
+	setmetatable(rock, { __index = rock_meta })
+	table.insert(rocks, rock)
+end
+
+local function level_init()
 	for i=1,4 do
 		rock_create(math.random(30,width-30), math.random(30,height-30), math.random()*6.28, 30)
 	end
 	player.inv = 50
 end
 
+rock_meta = {
+	erase = function(self)
+		draw_rotated(poly_rock, self.x, self.y, self.ang, self.scale, bg)
+	end,
+	update = function(self, k)
+		self.x = (self.x + self.vx) % width
+		self.y = (self.y + self.vy) % height
+		
+		if player.inv == 0 and distance(self.x, self.y, player.x, player.y) < self.scale then
+			player:hit()
+		end
+	end,
+	hit = function(self, k, shot, sk)
+		sound.playPitch(1, 0.5, sound.drums.snare2)
+		self:erase()
+		score = score + ((rock_size + rock_step) - self.scale)
+		rock_speed = rock_speed + 0.06
+		if self.scale > rock_step then
+			rock_create(self.x, self.y, shot.ang - math.random()*3.14, self.scale-rock_step)
+			rock_create(self.x, self.y, shot.ang + math.random()*3.14, self.scale-rock_step)
+		end
+		table.remove(rocks, k)
+		table.remove(shots, sk)
+		if #rocks == 0 then
+			rock_speed = rock_speed - 0.6
+			score = score + 500
+			level_init()
+		end
+	end,
+	draw = function(self)
+		draw_rotated(poly_rock, self.x, self.y, self.ang, self.scale, fg)
+	end
+}
+
 function player:fire()
-	if #shots < max_shots then
+	if self.cdown == 0 and #shots < max_shots then
+		sound.playPitch(1, 2, sound.drums.tom)
 		shot = {
 			x = self.x,
 			y = self.y,
@@ -76,8 +153,9 @@ function player:fire()
 			vx = math.sin(self.ang) * shot_speed,
 			vy = -math.cos(self.ang) * shot_speed,
 		}
+  	setmetatable(shot, { __index = shot_meta })
 		table.insert(shots, shot)
-		self.cooldown = 25
+		self.cdown = 8
 	end
 end
 
@@ -87,7 +165,7 @@ function player:erase()
 end
 
 function player:update()
-	local angle_d = (keys.getState(keys.right) and 0.1 or 0) - (keys.getState(keys.left) and 0.1 or 0)
+	local angle_d = (keys.getState(keys.right) and 0.15 or 0) - (keys.getState(keys.left) and 0.15 or 0)
 
 	self.ang = self.ang + angle_d
 	if keys.getState(keys.up) then
@@ -103,8 +181,7 @@ function player:update()
 	if self.cdown > 0 then
 		self.cdown = self.cdown - 1
 	else
-		state, _, code = keys.poll()
-		if state == keys.states.pressed and code == keys.enter then
+		if keys.getState(keys.enter) then
 			self:fire()
 		end
 	end
@@ -113,6 +190,7 @@ function player:update()
 end
 
 function player:hit()
+	sound.playPitch(1, 0.4, sound.drums.snare1)
 	if lives == 0 then game_over = true return end
 	lives = lives - 1
 	self.x = width/2
@@ -132,77 +210,7 @@ function player:draw()
 	end
 end
 
-function shot_erase(self)
-	draw_rotated(poly_shot, self.x, self.y, self.ang, 1, bg)
-end
-
-function shot_update(self, k)
-	self.x = self.x + self.vx
-	self.y = self.y + self.vy
-	
-	if self.x > width or self.x < 0 or self.y > height or self.y < 0 then
-		shot_erase(self)
-		table.remove(shots,k)
-	else
-		for rk,v in pairs(rocks) do
-			if distance(self.x, self.y, v.x, v.y) < v.scale then
-				rock_hit(v,rk,self,k)
-			end
-		end
-	end
-end
-
-function shot_draw(self)
-	draw_rotated(poly_shot, self.x, self.y, self.ang, 1, fg)
-end
-
-function rock_erase(self)
-	draw_rotated(poly_rock, self.x, self.y, self.ang, self.scale, bg)
-end
-
-function rock_create(x, y, ang, size)
-	rock = {
-		x = x,
-		y = y,
-		ang = ang,
-		vx = math.sin(ang) * rock_speed,
-		vy = -math.cos(ang) * rock_speed,
-		scale = size
-	}
-	table.insert(rocks, rock)
-end
-
-function rock_update(self, k)
-	self.x = (self.x + self.vx) % width
-	self.y = (self.y + self.vy) % height
-	
-	if player.inv == 0 and distance(self.x, self.y, player.x, player.y) < self.scale then
-		player:hit()
-	end
-end
-
-function rock_hit(self, k, shot, sk)
-	rock_erase(self)
-	score = score + ((rock_size + rock_step) - self.scale)
-	rock_speed = rock_speed + 0.06
-	if self.scale > rock_step then
-		rock_create(self.x, self.y, shot.ang - math.random()*3.14, self.scale-rock_step)
-		rock_create(self.x, self.y, shot.ang + math.random()*3.14, self.scale-rock_step)
-	end
-	table.remove(rocks, k)
-	table.remove(shots, sk)
-	if #rocks == 0 then
-		rock_speed = rock_speed - 0.6
-		score = score + 500
-		level_init()
-	end
-end
-
-function rock_draw(self)
-	draw_rotated(poly_rock, self.x, self.y, self.ang, self.scale, fg)
-end
-
-function hud_draw()
+local function hud_draw()
 	draw.text(15,15,fg,bg,"       ")
 	draw.text(15,15,fg,bg,score) 
 	for i = 0, 3 do
@@ -211,6 +219,7 @@ function hud_draw()
 	end
 end
 
+term.clear()
 --draw.enableBuffer(true)
 draw.rectFill(0, 0, width, height, bg)
 level_init()
@@ -219,24 +228,24 @@ while true do
 	if keys.getState(keys.esc) or game_over then break end
 	
 	local now = os.clock()
-	if now >= last_frame + 0.04 then
+	if now >= last_frame + 0.05 then
 		last_frame = now
 		
 		-- erase
 		player:erase()
-		for _,v in pairs(shots) do shot_erase(v) end
-		for _,v in pairs(rocks) do rock_erase(v) end
+		for _,v in pairs(shots) do v:erase() end
+		for _,v in pairs(rocks) do v:erase() end
 		
 		-- move player
 		player:update()
-		for k,v in pairs(shots) do shot_update(v,k) end
-		for k,v in pairs(rocks) do rock_update(v,k) end
+		for k,v in pairs(shots) do v:update(k) end
+		for k,v in pairs(rocks) do v:update(k) end
 		
 		--draw.clear()
 		hud_draw()
 		player:draw()
-		for _,v in pairs(shots) do shot_draw(v) end
-		for _,v in pairs(rocks) do rock_draw(v) end
+		for _,v in pairs(shots) do v:draw() end
+		for _,v in pairs(rocks) do v:draw() end
 		--draw.blitBuffer()
 		
 		collectgarbage()
