@@ -63,7 +63,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`blit(text, fg, bg)`](#blittext-fg-bg)
 	- [`loadFont(filename)`](#loadfontfilename)
 - [`draw` - Drawing functions](#draw---drawing-functions)
-	- [`text(x, y, fg, bg, text)`](#textx-y-fg-bg-text)
+	- [`text(x, y, text, [fg], [bg], [align])`](#textx-y-text-fg-bg-align)
 	- [`clear()`](#clear-1)
 	- [`point(x, y, color)`](#pointx-y-color)
 	- [`rect(x, y, width, height, color)`](#rectx-y-width-height-color)
@@ -540,15 +540,16 @@ Loads a font from the SD card, falling back to the default built-in font in case
 
 # `draw` - Drawing functions
 
-## `text(x, y, fg, bg, text)`
+## `text(x, y, text, [fg], [bg], [align])`
 Draws text on the screen at a determined position with determined colors
 
 **Parameters**
 1. `x : number` - The horizontal position in pixels
 2. `y : number` - The vertical position in pixels
-3. `fg : number` - The foreground [`color`](#colors---color-functions-and-constants)
-4. `bg : number` - The background [`color`](#colors---color-functions-and-constants)
-5. `text : string` - The text to be written
+3. `text : string` - The text to be written
+4. `fg : number` - The foreground [`color`](#colors---color-functions-and-constants), defaults to white
+5. `bg : number` - The background [`color`](#colors---color-functions-and-constants), defaults to black
+6. `align : number` - Which way to align text, see [Constants](#constants-1). Defaults to `align_left`
 
 ## `clear()`
 Clears the drawn screen. This does not affect the terminal cursor
@@ -681,6 +682,9 @@ Blits a sprite from a spritesheet onto the screen
 * `flip_horizontal`
 * `flip_vertical`
 * `flip_both`
+* `align_left`
+* `align_center`
+* `align_right`
 
 
 # `colors` - Color functions and constants

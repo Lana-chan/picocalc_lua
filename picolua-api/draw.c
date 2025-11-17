@@ -26,11 +26,12 @@ Spritesheet* l_newsprite(lua_State *L) {
 static int l_draw_text(lua_State* L) {
 	int x = luaL_checknumber(L, 1);
 	int y = luaL_checknumber(L, 2);
-	u16 fg = luaL_checkinteger(L, 3);
-	u16 bg = luaL_checkinteger(L, 4);
 	size_t len;
-	const char* text = luaL_checklstring(L, 5, &len);
-	lcd_draw_text(x, y, fg, bg, text, len);
+	const char* text = luaL_checklstring(L, 3, &len);
+	Color fg = luaL_optinteger(L, 4, RGB(255,255,255));
+	Color bg = luaL_optinteger(L, 5, RGB(0,0,0));
+	u8 align = luaL_optinteger(L, 6, LCD_ALIGN_LEFT);
+	lcd_draw_text(x, y, fg, bg, text, len, align);
 	return 0;
 }
 
@@ -398,6 +399,9 @@ int luaopen_draw(lua_State *L) {
 	lua_pushintegerconstant(L, "flip_horizontal", DRAW_MIRROR_H);
 	lua_pushintegerconstant(L, "flip_vertical", DRAW_MIRROR_V);
 	lua_pushintegerconstant(L, "flip_both", DRAW_MIRROR_H | DRAW_MIRROR_V);
+	lua_pushintegerconstant(L, "align_left", LCD_ALIGN_LEFT);
+	lua_pushintegerconstant(L, "align_center", LCD_ALIGN_CENTER);
+	lua_pushintegerconstant(L, "align_right", LCD_ALIGN_RIGHT);
 	
 	return 1;
 }
