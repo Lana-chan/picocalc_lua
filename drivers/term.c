@@ -243,7 +243,7 @@ static void out_char(char c) {
 	if (c == '\n') {
 		ansi.x = 0;
 		ansi.y += 1;
-		term_erase_line(ansi.y);
+		//term_erase_line(ansi.y);
 		should_scroll();
 	} else if (c == '\b') ansi.x -= 1;
 	//else if (c == '\r') ansi.x = 0;
