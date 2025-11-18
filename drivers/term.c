@@ -67,6 +67,7 @@ typedef struct {
 	u16 fg, bg;
 	char stack[ANSI_STACK_SIZE];
 	int stack_size;
+	int scroll;
 	bool cursor_enabled;
 	bool cursor_visible;
 	bool cursor_manual;
@@ -95,14 +96,18 @@ static int ansi_len_to_lcd_y(int len) {
 }
 
 void term_scroll(int lines) {
-	//term_erase_line(0); // didn't work?
-	lcd_scroll(lines * font.glyph_height);
+	if (lines != ansi.scroll) {
+		ansi.scroll = lines;
+		lcd_scroll(lines * font.glyph_height);
+		term_erase_line(lines+font.term_height-1);
+	}
 }
 
 void term_clear() {
 	ansi.x = ansi.y = ansi.len = 0;
 	lcd_clear();
 	lcd_scroll(0);
+	ansi.scroll = 0;
 }
 
 void term_erase_line(int y) {
@@ -223,7 +228,6 @@ static inline void should_scroll() {
 	if (ansi.x >= font.term_width) {
 		ansi.x = 0;
 		ansi.y += 1;
-		term_erase_line(ansi.y);
 	}
 	if (ansi.y >= font.term_height) {
 		term_scroll(ansi.y - (font.term_height - 1));
@@ -384,13 +388,13 @@ static void term_erase_input(int size) {
 }
 
 static void term_draw_input(char* buffer, int size, int cursor) {
+	if (ansi.y + (size + ansi.x) / font.term_width >= font.term_height) term_scroll(ansi.y + (size + ansi.x) / font.term_width - (font.term_height-1));
 	for (int i = 0; i < size + 1; i++) {
 		int x = ansi_len_to_lcd_x(i), y = ansi_len_to_lcd_y(i);
 		if (i < size) lcd_draw_char(x, y, ansi.fg, ansi.bg, buffer[i]);
 		else lcd_fill(ansi.bg, x, y, font.glyph_width, font.glyph_height);
 		//if (ansi.cursor_enabled && i == cursor) lcd_fifo_fill(ansi.fg, x, y + font.glyph_height - 3, font.glyph_width, 2);
 	}
-	if (ansi.y + (size + ansi.x) / font.term_width >= font.term_height) term_scroll(ansi.y + (size + ansi.x) / font.term_width - (font.term_height-1));
 }
 
 static void history_save(history_t* history, int entry, char* text, int size) {
