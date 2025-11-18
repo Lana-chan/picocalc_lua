@@ -9,6 +9,8 @@ A Lua interpreter for PicoCalc. It contains a REPL, basic API to draw graphics, 
 * Lua-based Editor taken from https://github.com/cc-tweaked/CC-Tweaked
 * C-based Editor taken from https://github.com/snaptoken/kilo-src
 
+You can find more credits running `credits()` at the Lua prompt
+
 ## Dependencies
 
 ```

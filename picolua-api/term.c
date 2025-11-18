@@ -40,6 +40,12 @@ static int l_term_getSize(lua_State* L) {
 	return 2;
 }
 
+static int l_term_getFontSize(lua_State* L) {
+	lua_pushinteger(L, font.glyph_width);
+	lua_pushinteger(L, font.glyph_height);
+	return 2;
+}
+
 static int l_term_clear(lua_State* L) {
 	term_clear();
 	return 0;
@@ -117,6 +123,7 @@ int luaopen_term(lua_State *L) {
 		{"getCursorBlink", l_term_getCursorBlink},
 		{"setCursorBlink", l_term_setCursorBlink},
 		{"getSize", l_term_getSize},
+		{"getFontSize", l_term_getFontSize},
 		{"clear", l_term_clear},
 		{"clearLine", l_term_clearLine},
 		{"getTextColor", l_term_getTextColor},

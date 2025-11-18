@@ -2,9 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "pico/stdlib.h"
-#include "pico/multicore.h"
-
 #include "drivers/lcd.h"
 #include "drivers/draw.h"
 #include "drivers/keyboard.h"
@@ -75,6 +72,15 @@ void lua_post_script(lua_State *L) {
 	keyboard_set_interrupt_callback(NULL);
 }
 
+void lua_bootscreen() {
+	term_clear();
+	printf("    \x1b[93mPicoCalc Lua\x1b[m %s\n", GIT_DESC);
+	printf("    %u bytes free\n", get_free_memory());
+	draw_fill_circle(2*font.glyph_width - font.glyph_height / 2, font.glyph_height * 1.125, font.glyph_height / 1.6, RGB(100,100,255));
+	draw_fill_circle(2*font.glyph_width + font.glyph_height * 0.375, font.glyph_height * 0.25, font.glyph_height / 4, RGB(100,100,255));
+	draw_fill_circle(2*font.glyph_width - font.glyph_height / 4, font.glyph_height * 0.875, font.glyph_height / 4, RGB(255,255,255));
+}
+
 void lua_main() {
 	int status;
 	size_t len;
@@ -92,12 +98,7 @@ void lua_main() {
 
 	if (mounted && fs_exists(STARTUP_FONT)) lcd_load_font(STARTUP_FONT);
 
-	term_clear();
-	printf("    \x1b[93mPicoCalc Lua\x1b[m %s\n", GIT_DESC);
-	printf("    %u bytes free\n", get_free_memory());
-	draw_fill_circle(2*font.glyph_width - font.glyph_height / 2, font.glyph_height * 1.125, font.glyph_height / 1.6, RGB(100,100,255));
-	draw_fill_circle(2*font.glyph_width + font.glyph_height * 0.375, font.glyph_height * 0.25, font.glyph_height / 4, RGB(100,100,255));
-	draw_fill_circle(2*font.glyph_width - font.glyph_height / 4, font.glyph_height * 0.875, font.glyph_height / 4, RGB(255,255,255));
+	lua_bootscreen();
 	if (mounted) {
 		printf("\x1b[92mSD card mounted!\x1b[m\n");
 

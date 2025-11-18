@@ -892,6 +892,7 @@ void editorFindCallback(char *query, int key) {
 			break;
 		}
 	}
+	E.redraw_rows = true;
 }
 
 void editorFind() {
@@ -911,6 +912,7 @@ void editorFind() {
 		E.coloff = saved_coloff;
 		E.rowoff = saved_rowoff;
 	}
+	E.redraw_rows = true;
 }
 
 /*** append buffer ***/

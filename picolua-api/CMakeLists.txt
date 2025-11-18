@@ -21,7 +21,8 @@ target_sources(picolua-api INTERFACE
 )
 
 target_link_libraries(picolua-api INTERFACE
-	pico_stdlib 
+	pico_stdlib
+	pico_multicore
 	hardware_spi
 	hardware_i2c
 )

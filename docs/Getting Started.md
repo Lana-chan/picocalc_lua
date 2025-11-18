@@ -41,6 +41,19 @@ edit([filename])
 
 The `filename` parameter is optional, and if omitted, the editor will prompt you for a filename before the first time saving. A new file will be created if a filename that doesn't exist is provided by either manner.
 
+|               |                            |
+| ------------- | -------------------------- |
+| Shift+Arrows  | Page up/down, move by word |
+| F1            | Save                       |
+| F2            | Quit                       |
+| F3            | Find                       |
+| F4            | Mark mode (select)         |
+| F5            | Run current file           |
+| Ctrl-X        | Cut (in mark mode)         |
+| Ctrl-C        | Copy (in mark mode)        |
+| Ctrl-V        | Paste clipboard            |
+| Ctrl-L        | Toggle line numbers        |
+
 ### ComputerCraft editor
 
 Previously PicoCalc Lua relied on bundling an editor orignally made for the [CC: Tweaked](https://github.com/cc-tweaked/CC-Tweaked) project due to its ease of portability for being written in Lua. However, this editor consumes too much RAM to be used on RP2040 devices and is only suitable for RP2350.

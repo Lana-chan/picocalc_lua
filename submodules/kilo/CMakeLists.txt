@@ -6,6 +6,7 @@ target_sources(kilo
 )
 
 target_link_libraries(kilo 
+	pico_stdlib
 	pico_multicore
 )
 
