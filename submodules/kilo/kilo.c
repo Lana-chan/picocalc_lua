@@ -937,10 +937,9 @@ void abFree(struct abuf *ab) {
 
 /*** output ***/
 
-void editorScroll(int margin) {
+int editorScroll() {
 	int old_rowoff = E.rowoff;
 	int old_coloff = E.coloff;
-	int screencols = E.screencols - margin;
 
 	E.rx = 0;
 	if (E.cy < E.numrows) {
@@ -953,6 +952,13 @@ void editorScroll(int margin) {
 	if (E.cy >= E.rowoff + E.screenrows) {
 		E.rowoff = E.cy - E.screenrows + 1;
 	}
+
+	// line number margin, measures longest number width possible on screen
+	int margin = 0;
+	int longest = (E.screenrows + E.rowoff > E.numrows ? E.numrows : E.screenrows + E.rowoff);
+	if (E.linenums) margin = snprintf(NULL, 0, "%d", longest) + 1;
+	int screencols = E.screencols - margin;
+
 	if (E.rx < E.coloff) {
 		E.coloff = E.rx;
 	}
@@ -961,6 +967,8 @@ void editorScroll(int margin) {
 	}
 
 	if (E.rowoff != old_rowoff || E.coloff != old_coloff) E.redraw_rows = true;
+
+	return margin;
 }
 
 void editorDrawRows(struct abuf *ab, int margin) {
@@ -1128,15 +1136,10 @@ void editorDrawMessageBar(struct abuf *ab) {
 }
 
 void editorRefreshScreen() {
-	// line number margin, measures longest number width possible on screen
-	int margin = 0;
-	int longest = (E.screenrows + E.rowoff > E.numrows ? E.numrows : E.screenrows + E.rowoff);
-	if (E.linenums) margin = snprintf(NULL, 0, "%d", longest) + 1;
+	int margin = editorScroll();
 
 	// permanent statuses
 	if (E.mode == MODE_MARK) editorSetStatusMessage(STATUS_MARK);
-
-	editorScroll(margin);
 
 	struct abuf ab = ABUF_INIT;
 
@@ -1326,10 +1329,15 @@ int editorProcessKeypress() {
 	static int quit_times = KILO_QUIT_TIMES;
 
 	int c = editorReadKey();
-
+	bool handled = true;
 	// keypresses for specific modes only
 	if (E.mode == MODE_INSERT) {
 		switch (c) {
+			case CTRL_C:
+			case CTRL_X:
+			case ESC:
+				break;
+
 			case KEY_F1:
 				editorSave(false);
 				break;
@@ -1357,9 +1365,18 @@ int editorProcessKeypress() {
 					E.redraw_rows = true;
 				}
 				break;
+
+			default:
+				handled = false;
 		}
 	} else if (E.mode == MODE_MARK) {
 		switch (c) {
+			case KEY_F1:
+			case KEY_F2:
+			case KEY_F3:
+			case KEY_F5:
+				break;
+
 			case TAB:
 			case CTRL_TAB:
 				editorIndentMark(c);
@@ -1378,74 +1395,70 @@ int editorProcessKeypress() {
 			case ESC:
 				editorEnterExitMark();
 				break;
+
+			default:
+				handled = false;
 		}
 	}
 
 	// common keypresses
-	switch (c) {
-		case '\r':
-			if (E.mode == MODE_MARK) editorDelMark();
-			editorInsertNewline(true);
-			break;
-
-		case KEY_F4:
-			editorEnterExitMark();
-			break;
-
-		case DEL_KEY:
-			if (E.mode != MODE_MARK) editorMoveCursor(ARROW_RIGHT);
-		case BACKSPACE:
-		case CTRL_H:
-			if (E.mode == MODE_MARK) editorDelMark();
-			else editorDelChar();
-			break;
-
-		case PAGE_UP:
-		case PAGE_DOWN:
-			{
-				int times = E.screenrows - 1;
-				while (times--)
-					editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-			}
-			break;
-
-		case SHIFT_ARROW_LEFT:
-		case SHIFT_ARROW_RIGHT:
-			editorMoveCursorWord(c);
-			break;
-
-		case HOME_KEY:
-		case END_KEY:
-		case ARROW_UP:
-		case ARROW_DOWN:
-		case ARROW_LEFT:
-		case ARROW_RIGHT:
-			editorMoveCursor(c);
-			break;
-
-		case CTRL_L:
-			E.linenums = !E.linenums;
-			E.redraw_rows = true;
-			break;
-
-		case CTRL_C:
-		case CTRL_X:
-		case CTRL_TAB:
-		case '\x1b':
-			break;
-
-		case CTRL_V:
-			if (E.mode == MODE_MARK) editorDelMark();
-			editorInsertClipboard();
-			break;
-
-		default:
-			if (E.mode == MODE_MARK) {
-				if (c == TAB) break;
-				editorDelMark();
-			}
-			editorInsertChar(c);
-			break;
+	if (!handled) {
+		switch (c) {
+			case ENTER:
+				if (E.mode == MODE_MARK) editorDelMark();
+				editorInsertNewline(true);
+				break;
+	
+			case KEY_F4:
+				editorEnterExitMark();
+				break;
+	
+			case DEL_KEY:
+				if (E.mode != MODE_MARK) editorMoveCursor(ARROW_RIGHT);
+			case BACKSPACE:
+			case CTRL_H:
+				if (E.mode == MODE_MARK) editorDelMark();
+				else editorDelChar();
+				break;
+	
+			case PAGE_UP:
+			case PAGE_DOWN:
+				{
+					int times = E.screenrows - 1;
+					while (times--)
+						editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+				}
+				break;
+	
+			case SHIFT_ARROW_LEFT:
+			case SHIFT_ARROW_RIGHT:
+				editorMoveCursorWord(c);
+				break;
+	
+			case HOME_KEY:
+			case END_KEY:
+			case ARROW_UP:
+			case ARROW_DOWN:
+			case ARROW_LEFT:
+			case ARROW_RIGHT:
+				editorMoveCursor(c);
+				break;
+	
+			case CTRL_L:
+				E.linenums = !E.linenums;
+				E.redraw_rows = true;
+				break;
+	
+			case CTRL_V:
+				if (E.mode == MODE_MARK) editorDelMark();
+				editorInsertClipboard();
+				break;
+	
+			default:
+				if (E.mode == MODE_MARK) editorDelMark();
+				editorInsertChar(c);
+				break;
+		}
 	}
 
 	quit_times = KILO_QUIT_TIMES;
