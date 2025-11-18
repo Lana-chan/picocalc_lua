@@ -141,11 +141,14 @@ char *C_HL_keywords[] = {
 char *Lua_HL_extensions[] = { ".lua", NULL };
 char *Lua_HL_keywords[] = {
 	/* Keywords */
-	"function","if","while","for","end","in","do","local","break",
-	"then","pairs","ipairs","return","else","elseif",
+	"and","break","do","else","elseif","end",
+  "false","for","function","goto","if","in",
+  "local","nil","not","or","repeat","return",
+  "then","true","until","while",
+
 	/* Libs (ending with pipe) will be marked as HL_KEYWORD2 */
 	"math|","table|","string|","term|","draw|","keys|","sys|","fs|",
-	"colors|",NULL
+	"colors|","sound|",NULL
 };
 
 struct editorSyntax HLDB[] = {
