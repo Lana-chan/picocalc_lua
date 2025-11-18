@@ -102,7 +102,7 @@ typedef struct erow {
 } erow;
 
 struct editorConfig {
-	int cx, cy;
+	int cx, cy, want_rx;
 	int markx, marky;
 	int rx;
 	int rowoff;
@@ -1222,6 +1222,9 @@ void editorMoveCursor(int key) {
 			break;
 	}
 
+	if (!(key == ARROW_UP || key == ARROW_DOWN)) E.want_rx = editorRowCxToRx(&E.row[E.cy], E.cx);
+	else E.cx = editorRowRxToCx(&E.row[E.cy], E.want_rx);
+
 	row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
 	int rowlen = row ? row->size : 0;
 	if (E.cx > rowlen) {
@@ -1352,14 +1355,7 @@ int editorProcessKeypress() {
 		case PAGE_UP:
 		case PAGE_DOWN:
 			{
-				if (c == PAGE_UP) {
-					E.cy = E.rowoff;
-				} else if (c == PAGE_DOWN) {
-					E.cy = E.rowoff + E.screenrows - 1;
-					if (E.cy > E.numrows) E.cy = E.numrows;
-				}
-
-				int times = E.screenrows;
+				int times = E.screenrows - 1;
 				while (times--)
 					editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
 			}
