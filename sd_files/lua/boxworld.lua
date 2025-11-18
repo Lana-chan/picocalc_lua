@@ -71,7 +71,7 @@ function music.perform()
 					ch.octave = ch.octave + 1
 				elseif music.notes[input] then
 					ch.timer = ch.length
-					sound.play(k-1, music.notes[input] + (ch.octave+3) * 12, music.instrument)
+					sound.play(k-1, music.notes[input] + (ch.octave+2) * 12, music.instrument)
 					break
 				end
 			end

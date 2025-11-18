@@ -225,7 +225,7 @@ void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 	if (inst->wave >= sound_getsamplecount()) return;
 
 	const int16_t *sample = sample_waves[inst->wave];
-	schedule_chs[ch].sample = (sample + 2);
+	schedule_chs[ch].sample = (sample + 3);
 	schedule_chs[ch].sample_len = (uint16_t)*(sample + 1);
 	schedule_chs[ch].sample_pos = 0;
 	schedule_chs[ch].counter = 0;
@@ -254,7 +254,7 @@ void sound_playpitch(uint8_t ch, float pitch, instrument_t *inst) {
 
 	schedule_chs[ch].playing = true;
 	schedule_chs[ch].start_at = get_sampletime_correction();
-	schedule_chs[ch].sample_pos_increment = pitch * PITCH_RESOLUTION;
+	schedule_chs[ch].sample_pos_increment = pitch * (uint16_t)*(sample + 2)/1000 * PITCH_RESOLUTION;
 }
 
 void sound_off(uint8_t ch) {

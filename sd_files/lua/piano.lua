@@ -52,7 +52,7 @@ local function redraw()
 	term.write("\n")
 	if pkeys[last] then term.write(noteString(pkeys[last] + octave * 12)) end
 	term.write("\n\n")
-	term.write("Octave: " .. octave .. " | Instrument: " .. inst_names[inst_num+1] .. "\n")
+	term.write("Octave: " .. octave .. " | Instrument: " .. inst_names[inst_num+1] .. "\n\x1b[K")
 	term.write("/ \\ - Change octave\n[ ] - Change instrument\nEsc - Quit\n")
 end
 
