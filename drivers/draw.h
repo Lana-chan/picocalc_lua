@@ -13,8 +13,8 @@ typedef struct {
 	i16 width;
 	i16 height;
 	u8 count;
-	Color* bitmap;
 	Color mask;
+	Color* bitmap;
 } Spritesheet;
 
 Color draw_color_from_hsv(u8 h, u8 s, u8 v);

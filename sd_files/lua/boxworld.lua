@@ -3,7 +3,7 @@
 -- picocalc lua conversion by maple "mavica" syrup, 2025
 
 local sprite_size = 20
-local sprites = draw.loadSprites("lua/boxworld.bmp", sprite_size, sprite_size)
+local sprites = draw.loadBMPSprites("lua/boxworld.bmp", sprite_size, sprite_size)
 
 local fg,bg = colors.fromRGB(255,255,255),colors.fromRGB(0,0,0)
 local screen = nil
@@ -243,7 +243,7 @@ function title.draw()
 	-- boxworld logo
 	for j = 0, 1 do
 		for i = 0, 6 do
-			draw.blitSprite(160 - 70 + i * sprite_size, 80 + j * sprite_size, sprites, 14 + i + j * 7)
+			sprites:blit(160 - 70 + i * sprite_size, 80 + j * sprite_size, 14 + i + j * 7)
 		end
 	end
 
@@ -287,16 +287,16 @@ function game.draw()
 		for i = 1, #row do
 			local pos = {game.draw_offset[1] + i * sprite_size, game.draw_offset[2] + j * sprite_size}
 			if row[i] == "1" then -- wall
-				draw.blitSprite(pos[1], pos[2], sprites, 0)
+				sprites:blit(pos[1], pos[2], 0)
 			elseif row[i] == "2" then -- floor
-				draw.blitSprite(pos[1], pos[2], sprites, 1)
+				sprites:blit(pos[1], pos[2], 1)
 			elseif row[i] == "3" then -- floor with goal
-				draw.blitSprite(pos[1], pos[2], sprites, 1)
-				draw.blitSprite(pos[1], pos[2], sprites, 4)
+				sprites:blit(pos[1], pos[2], 1)
+				sprites:blit(pos[1], pos[2], 4)
 			elseif row[i] == "4" then -- box
-				draw.blitSprite(pos[1], pos[2], sprites, 2)
+				sprites:blit(pos[1], pos[2], 2)
 			elseif row[i] == "5" then -- box on goal
-				draw.blitSprite(pos[1], pos[2], sprites, 3)
+				sprites:blit(pos[1], pos[2], 3)
 			end
 		end
 	end
@@ -305,7 +305,7 @@ function game.draw()
 		game.draw_offset[1] + game.player_pos[1] * sprite_size,
 		game.draw_offset[2] + game.player_pos[2] * sprite_size
 	}
-	draw.blitSprite(pos[1], pos[2], sprites, game.player_sprites[game.player_direction][game.player_flip+1])
+	sprites:blit(pos[1], pos[2], game.player_sprites[game.player_direction][game.player_flip+1])
 
 	if game.player_direction == "W" then
 		draw.text(160, 160, "You win !!!",fg,bg,draw.align_center)

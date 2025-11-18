@@ -8,13 +8,13 @@ local function randomCircle()
 	draw.circleFill(x,y,r,c)
 end
 
-local sprites = draw.loadSprites("lua/boxworld.bmp", 30, 30)
+local sprites = draw.loadBMPSprites("lua/boxworld.bmp", 30, 30)
 
 local function randomSprite()
 	local x = math.random(-29, 319)
 	local y = math.random(-29, 319)
 	local id = math.random(0,13)
-	draw.blitSprite(x,y,sprites,id)
+	sprites:blit(x,y,id)
 end
 
 local start, dur0, dur1, dur2

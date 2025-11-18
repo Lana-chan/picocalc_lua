@@ -274,7 +274,7 @@ typedef struct __attribute__((__packed__)) {
 	unsigned char  r;
 } IMAGE;
 
-static int l_draw_load_spritesheet(lua_State* L) {
+static int l_draw_load_spritesheet_bmp(lua_State* L) {
 	const char* filename = luaL_checkstring(L, 1);
 	int spr_width = luaL_optinteger(L, 2, 0);
 	int spr_height = luaL_optinteger(L, 3, 0);
@@ -342,6 +342,134 @@ static int l_draw_load_spritesheet(lua_State* L) {
 	return 1;
 }
 
+static int l_draw_load_spritesheet(lua_State* L) {
+	const char* filename = luaL_checkstring(L, 1);
+	FIL file;
+
+	FRESULT res = f_open(&file, filename, FA_READ);
+	if (res != FR_OK) return luaL_error(L, fs_error_strings[res]);
+	
+	Spritesheet* sprite = l_newsprite(L);
+	
+	res = f_read(&file, &sprite->width, sizeof(sprite->width), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+	res = f_read(&file, &sprite->height, sizeof(sprite->height), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+	res = f_read(&file, &sprite->count, sizeof(sprite->count), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+	res = f_read(&file, &sprite->mask, sizeof(sprite->mask), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+
+	int bitmap_size = sprite->width * sprite->height * sprite->count * sizeof(Color);
+	sprite->bitmap = (Color*)malloc(bitmap_size);
+	res = f_read(&file, sprite->bitmap, bitmap_size, NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+
+	f_close(&file);
+
+	return 1;
+}
+
+static int l_draw_new_spritesheet(lua_State* L) {
+	const char* filename = luaL_checkstring(L, 1);
+	int spr_width = luaL_optinteger(L, 2, 16);
+	int spr_height = luaL_optinteger(L, 3, 16);
+	int spr_count = luaL_optinteger(L, 4, 1);
+	Color spr_mask = luaL_optinteger(L, 5, RGB(255, 0, 255));
+		
+	Spritesheet* sprite = l_newsprite(L);
+	
+	sprite->width = spr_width;
+	sprite->height = spr_height;
+	sprite->count = spr_count;
+	sprite->mask = spr_mask;
+
+	int bitmap_size = sprite->width * sprite->height * sprite->count * sizeof(Color);
+	sprite->bitmap = (Color*)malloc(bitmap_size);
+	memset(sprite->bitmap, 0, bitmap_size);
+
+	return 1;
+}
+
+static int l_draw_sprite_save(lua_State* L) {
+	Spritesheet* sprite = l_checksprite(L, 1);
+	const char* filename = luaL_checkstring(L, 2);
+	FIL file;
+
+	FRESULT res = f_open(&file, filename, FA_WRITE | FA_CREATE_ALWAYS);
+	if (res != FR_OK) return luaL_error(L, fs_error_strings[res]);
+	
+	res = f_write(&file, &sprite->width, sizeof(sprite->width), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+	res = f_write(&file, &sprite->height, sizeof(sprite->height), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+	res = f_write(&file, &sprite->count, sizeof(sprite->count), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+	res = f_write(&file, &sprite->mask, sizeof(sprite->mask), NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+
+	int bitmap_size = sprite->width * sprite->height * sprite->count * sizeof(Color);
+	res = f_write(&file, sprite->bitmap, bitmap_size, NULL);
+	if (res != FR_OK) { f_close(&file); return luaL_error(L, fs_error_strings[res]); }
+
+	f_close(&file);
+
+	return 0;
+}
+
+static int l_draw_sprite_getsize(lua_State* L) {
+	Spritesheet* sprite = l_checksprite(L, 1);
+
+	lua_pushinteger(L, sprite->width);
+	lua_pushinteger(L, sprite->height);
+	lua_pushinteger(L, sprite->count);
+	return 3;
+}
+
+static int l_draw_sprite_getmask(lua_State* L) {
+	Spritesheet* sprite = l_checksprite(L, 1);
+
+	lua_pushinteger(L, sprite->mask);
+	return 1;
+}
+
+static int l_draw_sprite_setmask(lua_State* L) {
+	Spritesheet* sprite = l_checksprite(L, 1);
+	Color color = luaL_checkinteger(L, 2);
+
+	sprite->mask = color;
+	return 0;
+}
+
+static int l_draw_sprite_getpixel(lua_State* L) {
+	Spritesheet* sprite = l_checksprite(L, 1);
+	i16 x = luaL_checkinteger(L, 2);
+	i16 y = luaL_checkinteger(L, 3);
+	u8 spriteid = luaL_optinteger(L, 4, 0);
+
+	x = x % sprite->width;
+	y = y % sprite->height;
+	spriteid % sprite->count;
+
+	lua_pushinteger(L, sprite->bitmap[(x + y * sprite->width) + (spriteid * sprite->width * sprite->height)]);
+	return 1;
+}
+
+static int l_draw_sprite_setpixel(lua_State* L) {
+	Spritesheet* sprite = l_checksprite(L, 1);
+	i16 x = luaL_checkinteger(L, 2);
+	i16 y = luaL_checkinteger(L, 3);
+	Color color = luaL_checkinteger(L, 4);
+	u8 spriteid = luaL_optinteger(L, 5, 0);
+
+	x = x % sprite->width;
+	y = y % sprite->height;
+	spriteid % sprite->count;
+
+	sprite->bitmap[(x + y * sprite->width) + (spriteid * sprite->width * sprite->height)] = color;
+	return 0;
+}
+
 static int l_draw_free_spritesheet(lua_State* L) {
 	Spritesheet* sprite = l_checksprite(L, 1);
 
@@ -351,10 +479,10 @@ static int l_draw_free_spritesheet(lua_State* L) {
 	return 0;
 }
 
-static int l_draw_blitsprite(lua_State* L) {
-	i16 x = luaL_checkinteger(L, 1);
-	i16 y = luaL_checkinteger(L, 2);
-	Spritesheet* sprite = l_checksprite(L, 3);
+static int l_draw_sprite_blit(lua_State* L) {
+	Spritesheet* sprite = l_checksprite(L, 1);
+	i16 x = luaL_checkinteger(L, 2);
+	i16 y = luaL_checkinteger(L, 3);
 	u8 spriteid = luaL_optinteger(L, 4, 0);
 	u8 flip = luaL_optinteger(L, 5, 0);
 
@@ -378,13 +506,21 @@ int luaopen_draw(lua_State *L) {
 		{"triangle", l_draw_triangle_shaded},
 		{"enableBuffer", l_draw_buffer_enable},
 		{"blitBuffer", l_draw_buffer_blit},
+		{"newSprites", l_draw_new_spritesheet},
 		{"loadSprites", l_draw_load_spritesheet},
-		{"blitSprite", l_draw_blitsprite},
+		{"loadBMPSprites", l_draw_load_spritesheet_bmp},
 		{NULL, NULL}
 	};
 	
 	static const luaL_Reg drawlib_spritemeta[] = {
 		{"__index", NULL},
+		{"blit", l_draw_sprite_blit},
+		{"getSize", l_draw_sprite_getsize},
+		{"getPixel", l_draw_sprite_getpixel},
+		{"setPixel", l_draw_sprite_setpixel},
+		{"getMask", l_draw_sprite_getmask},
+		{"setMask", l_draw_sprite_setmask},
+		{"save", l_draw_sprite_save},
 		{"__gc", l_draw_free_spritesheet},
 		{"__close", l_draw_free_spritesheet},
 		{NULL, NULL}
@@ -394,6 +530,8 @@ int luaopen_draw(lua_State *L) {
 
 	luaL_newmetatable(L, spritesheet);
 	luaL_setfuncs(L, drawlib_spritemeta, 0);
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -2, "__index");
 	lua_setfield(L, -2, spritesheet);
 
 	lua_pushintegerconstant(L, "flip_horizontal", DRAW_MIRROR_H);

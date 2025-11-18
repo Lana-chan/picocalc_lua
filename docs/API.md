@@ -76,8 +76,16 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`triangle(c1, x1, y1, c2, x2, y2, c3, x3, y3)`](#trianglec1-x1-y1-c2-x2-y2-c3-x3-y3)
 	- [`enableBuffer(mode, [dirty])`](#enablebuffermode-dirty)
 	- [`blitBuffer()`](#blitbuffer)
-	- [`loadSprites(filename, [width], [height], [mask])`](#loadspritesfilename-width-height-mask)
-	- [`blitSprite(x, y, spritesheet, [id], [flip])`](#blitspritex-y-spritesheet-id-flip)
+	- [`loadBMPSprites(filename, [width], [height], [mask])`](#loadbmpspritesfilename-width-height-mask)
+	- [`loadSprites(filename)`](#loadspritesfilename)
+	- [`newSprites([width], [height], [count], [mask])`](#newspriteswidth-height-count-mask)
+	- [`Spritesheet:blit(x, y, [id], [flip])`](#spritesheetblitx-y-id-flip)
+	- [`Spritesheet:getSize()`](#spritesheetgetsize)
+	- [`Spritesheet:getPixel(x, y, [id])`](#spritesheetgetpixelx-y-id)
+	- [`Spritesheet:setPixel(x, y, [id])`](#spritesheetsetpixelx-y-id)
+	- [`Spritesheet:getMask()`](#spritesheetgetmask)
+	- [`Spritesheet:setMask()`](#spritesheetsetmask)
+	- [`Spritesheet:save(filename)`](#spritesheetsavefilename)
 	- [Constants](#constants-1)
 - [`colors` - Color functions and constants](#colors---color-functions-and-constants)
 	- [`fromRGB(R, G, B)`](#fromrgbr-g-b)
@@ -655,7 +663,7 @@ The RAM framebuffer is dynamically allocated when enabled and freed when disable
 ## `blitBuffer()`
 Blit the contents of the framebuffer to the screen
 
-## `loadSprites(filename, [width], [height], [mask])`
+## `loadBMPSprites(filename, [width], [height], [mask])`
 Loads a spritesheet to memory for blitting sprites to the screen. Formats supported are 24bit and 32bit BMP, sprites are indexed top left to bottom right as an atlas
 
 **Parameters**
@@ -667,15 +675,82 @@ Loads a spritesheet to memory for blitting sprites to the screen. Formats suppor
 **Returns**
 1. `spritesheet` - Spritesheet object
 
-## `blitSprite(x, y, spritesheet, [id], [flip])`
+## `loadSprites(filename)`
+Loads a spritesheet to memory as saved by `Spritesheet:save`
+
+**Parameters**
+1. `filename : string` - The path for the Spritesheet on disk to be loaded
+
+**Returns**
+1. `spritesheet` - Spritesheet object
+
+## `newSprites([width], [height], [count], [mask])`
+Loads a spritesheet to memory for blitting sprites to the screen. Formats supported are 24bit and 32bit BMP, sprites are indexed top left to bottom right as an atlas
+
+**Parameters**
+1. `filename : string` - The path for the BMP on disk to be loaded
+2. `width : number` - The width of each individual sprite, defaults to 16
+3. `height : number` - The height of each individual sprite, defaults to 16
+4. `height : number` - The number of sprites in the sheet, defaults to 1
+5. `mask : number` - The [`color`](#colors---color-functions-and-constants) to be used as transparent pixels for the sprites. Defaults to `RGB(255, 0, 255)`
+
+**Returns**
+1. `spritesheet` - Spritesheet object
+
+## `Spritesheet:blit(x, y, [id], [flip])`
 Blits a sprite from a spritesheet onto the screen
 
 **Parameters**
 1. `x : number` - The horizontal position on the screen to blit the sprite to
 2. `y : number` - The vertical position on the screen to blit the sprite to
-3. `spritesheet : Spritesheet` - Spritesheet object containing the sprite to be drawn
+3. `id : number` - The index of the desired sprite within the spritesheet, defaults to 0
+4. `flip : number` - Bitmask for drawing the sprite flipped, see [Constants](#constants-1)
+
+## `Spritesheet:getSize()`
+Returns the sizes of the spritesheet
+
+**Returns**
+1. `number` - The width of each individual sprite
+2. `number` - The height of each individual sprite
+3. `number` - How many sprites are in the sheet
+
+## `Spritesheet:getPixel(x, y, [id])`
+Reads the color of a pixel in a sprite
+
+**Parameters**
+1. `x : number` - The horizontal position of the pixel to read
+2. `y : number` - The vertical position of the pixel to read
+3. `id : number` - The index of the desired sprite within the spritesheet, defaults to 0
+
+**Returns**
+1. `number` - The [`color`](#colors---color-functions-and-constants) of the pixel
+
+## `Spritesheet:setPixel(x, y, [id])`
+Writes the color of a pixel in a sprite
+
+**Parameters**
+1. `x : number` - The horizontal position of the pixel to read
+2. `y : number` - The vertical position of the pixel to read
+3. `mask : number` - The [`color`](#colors---color-functions-and-constants) to write onto the pixel
 4. `id : number` - The index of the desired sprite within the spritesheet, defaults to 0
-5. `flip : number` - Bitmask for drawing the sprite flipped, see [Constants](#constants-1)
+
+## `Spritesheet:getMask()`
+Gets the mask color used for sprite transparency in a sheet
+
+**Returns**
+1. `number` - The [`color`](#colors---color-functions-and-constants) used as transparency
+
+## `Spritesheet:setMask()`
+Sets the mask color used for sprite transparency in a sheet
+
+**Parameters**
+1. `mask : number` - The [`color`](#colors---color-functions-and-constants) to be used as transparency
+
+## `Spritesheet:save(filename)`
+Saves a spritesheet from memory onto disk
+
+**Parameters**
+1. `filename : string` - The path for the file to be saved on disk
 
 ## Constants
 
