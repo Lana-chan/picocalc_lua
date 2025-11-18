@@ -58,6 +58,8 @@ enum editorKey {
 	PAGE_UP,
 	PAGE_DOWN,
 	CTRL_TAB,
+	SHIFT_ARROW_LEFT,
+	SHIFT_ARROW_RIGHT,
 };
 
 enum editorHighlight {
@@ -142,9 +144,9 @@ char *Lua_HL_extensions[] = { ".lua", NULL };
 char *Lua_HL_keywords[] = {
 	/* Keywords */
 	"and","break","do","else","elseif","end",
-  "false","for","function","goto","if","in",
-  "local","nil","not","or","repeat","return",
-  "then","true","until","while",
+	"false","for","function","goto","if","in",
+	"local","nil","not","or","repeat","return",
+	"then","true","until","while",
 
 	/* Libs (ending with pipe) will be marked as HL_KEYWORD2 */
 	"math|","table|","string|","term|","draw|","keys|","sys|","fs|",
@@ -233,12 +235,14 @@ int editorReadKey() {
 				case KEY_PAGEDOWN:
 					return PAGE_DOWN;
 				case KEY_UP:
-					return ARROW_UP;
+				return ARROW_UP;
 				case KEY_DOWN:
-					return ARROW_DOWN;
+				return ARROW_DOWN;
 				case KEY_RIGHT:
+					if (event.modifiers & MOD_SHIFT) return SHIFT_ARROW_RIGHT;
 					return ARROW_RIGHT;
 				case KEY_LEFT:
+					if (event.modifiers & MOD_SHIFT) return SHIFT_ARROW_LEFT;
 					return ARROW_LEFT;
 				case KEY_HOME:
 					return HOME_KEY;
@@ -1203,8 +1207,10 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
 	}
 }
 
-void editorMoveCursor(int key) {
+int editorMoveCursor(int key) {
 	erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+	int old_cx = E.cx;
+	int old_cy = E.cy;
 
 	switch (key) {
 		case ARROW_LEFT:
@@ -1252,6 +1258,28 @@ void editorMoveCursor(int key) {
 	}
 
 	if (E.mode == MODE_MARK) E.redraw_rows = true;
+	return (E.cx - old_cx) + (E.cy - old_cy);
+}
+
+bool in_word(int off) {
+	int look_at = E.cx + off;
+	if (look_at < 0) return false;
+	if (look_at >= E.row[E.cy].size) return false;
+	char c = E.row[E.cy].chars[look_at];
+	if ((c >= 'a' && c <= 'z') ||
+			(c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') ||
+			(c == '_'))
+		return true;
+	return false;
+}
+
+void editorMoveCursorWord(int key) {
+	int arrow = (key == SHIFT_ARROW_LEFT ? ARROW_LEFT : ARROW_RIGHT);
+	int off = (key == SHIFT_ARROW_LEFT ? -1 : 0);
+	int old_cy = E.cy;
+	if (!in_word(off)) while (!in_word(off)) if (E.cy != old_cy || editorMoveCursor(arrow) == 0) break;
+	if (in_word(off)) while (in_word(off)) if (E.cy != old_cy || editorMoveCursor(arrow) == 0) break;
 }
 
 void editorEnterExitMark() {
@@ -1379,6 +1407,11 @@ int editorProcessKeypress() {
 				while (times--)
 					editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
 			}
+			break;
+
+		case SHIFT_ARROW_LEFT:
+		case SHIFT_ARROW_RIGHT:
+			editorMoveCursorWord(c);
 			break;
 
 		case HOME_KEY:
