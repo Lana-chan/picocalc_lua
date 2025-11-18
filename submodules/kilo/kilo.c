@@ -23,7 +23,7 @@
 
 /*** defines ***/
 
-#define KILO_VERSION "0.1-PicoLua"
+#define KILO_VERSION "0.2-PicoLua"
 #define KILO_TAB_STOP 2
 #define KILO_QUIT_TIMES 3
 
