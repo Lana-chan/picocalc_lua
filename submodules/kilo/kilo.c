@@ -120,6 +120,7 @@ struct editorConfig {
 	struct editorSyntax *syntax;
 	enum editorMode mode;
 	bool redraw_rows;
+	bool linenums;
 };
 
 struct editorConfig E;
@@ -929,9 +930,10 @@ void abFree(struct abuf *ab) {
 
 /*** output ***/
 
-void editorScroll() {
+void editorScroll(int margin) {
 	int old_rowoff = E.rowoff;
 	int old_coloff = E.coloff;
+	int screencols = E.screencols - margin;
 
 	E.rx = 0;
 	if (E.cy < E.numrows) {
@@ -947,28 +949,33 @@ void editorScroll() {
 	if (E.rx < E.coloff) {
 		E.coloff = E.rx;
 	}
-	if (E.rx >= E.coloff + E.screencols) {
-		E.coloff = E.rx - E.screencols + 1;
+	if (E.rx >= E.coloff + screencols) {
+		E.coloff = E.rx - screencols + 1;
 	}
 
 	if (E.rowoff != old_rowoff || E.coloff != old_coloff) E.redraw_rows = true;
 }
 
-void editorDrawRows(struct abuf *ab) {
+void editorDrawRows(struct abuf *ab, int margin) {
 	int y;
 	int m1x, m1y, m2x, m2y, rowmx, in_mark = 0;
 	editorOrderMarkPos(&m1x, &m1y, &m2x, &m2y);
+
+	// shorten screencols by margin
+	int screencols = E.screencols - margin;
 
 	for (y = 0; y < E.screenrows; y++) {
 		if (E.redraw_rows) {
 			int filerow = y + E.rowoff;
 			if (filerow >= E.numrows) {
+				int padding = margin;
+				while (padding--) abAppend(ab, " ", 1);
 				if (E.numrows == 0 && y == E.screenrows / 3) {
 					char welcome[80];
 					int welcomelen = snprintf(welcome, sizeof(welcome),
 						"Kilo editor -- version %s", KILO_VERSION);
-					if (welcomelen > E.screencols) welcomelen = E.screencols;
-					int padding = (E.screencols - welcomelen) / 2;
+					if (welcomelen > screencols) welcomelen = screencols;
+					padding = (screencols - welcomelen) / 2;
 					if (padding) {
 						abAppend(ab, "~", 1);
 						padding--;
@@ -981,11 +988,16 @@ void editorDrawRows(struct abuf *ab) {
 			} else {
 				int len = E.row[filerow].rsize - E.coloff;
 				if (len < 0) len = 0;
-				if (len > E.screencols) len = E.screencols;
+				if (len > screencols) len = screencols;
 				char *c = &E.row[filerow].render[E.coloff];
 				unsigned char *hl = &E.row[filerow].hl[E.coloff];
 				int current_color = -1;
 				int j;
+				if (E.linenums) {
+					char linenumbuf[32];
+					int linenumlen = snprintf(linenumbuf, sizeof(linenumbuf), "\x1b[90m%*d \x1b[39m", margin-1, filerow+1);
+					abAppend(ab, linenumbuf, linenumlen);
+				}
 				if (E.mode == MODE_MARK) {
 					if (m1y < filerow && m2y > filerow) in_mark = 1;
 					if (in_mark == 1) abAppend(ab, "\x1b[7m", 4);
@@ -1109,10 +1121,15 @@ void editorDrawMessageBar(struct abuf *ab) {
 }
 
 void editorRefreshScreen() {
-	editorScroll();
+	// line number margin, measures longest number width possible on screen
+	int margin = 0;
+	int longest = (E.screenrows + E.rowoff > E.numrows ? E.numrows : E.screenrows + E.rowoff);
+	if (E.linenums) margin = snprintf(NULL, 0, "%d", longest) + 1;
 
 	// permanent statuses
 	if (E.mode == MODE_MARK) editorSetStatusMessage(STATUS_MARK);
+
+	editorScroll(margin);
 
 	struct abuf ab = ABUF_INIT;
 
@@ -1120,13 +1137,13 @@ void editorRefreshScreen() {
 	abAppend(&ab, "\x1b[?25l", 6);
 	abAppend(&ab, "\x1b[H", 3);
 
-	editorDrawRows(&ab);
+	editorDrawRows(&ab, margin);
 	editorDrawStatusBar(&ab);
 	editorDrawMessageBar(&ab);
 
 	char buf[32];
 	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1,
-																						(E.rx - E.coloff) + 1);
+																						(E.rx - E.coloff) + 1 + margin);
 	abAppend(&ab, buf, strlen(buf));
 
 	abAppend(&ab, "\x1b[?25h", 6);
@@ -1370,8 +1387,12 @@ int editorProcessKeypress() {
 			editorMoveCursor(c);
 			break;
 
-		case CTRL_C:
 		case CTRL_L:
+			E.linenums = !E.linenums;
+			E.redraw_rows = true;
+			break;
+
+		case CTRL_C:
 		case CTRL_X:
 		case CTRL_TAB:
 		case '\x1b':
@@ -1414,6 +1435,7 @@ void initEditor() {
 	E.syntax = NULL;
 	E.redraw_rows = true;
 	E.mode = MODE_INSERT;
+	E.linenums = false;
 
 	if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 	E.screenrows -= 2;
