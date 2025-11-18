@@ -1253,10 +1253,13 @@ int editorMoveCursor(int key) {
 			break;
 	}
 
-	if (!(key == ARROW_UP || key == ARROW_DOWN)) E.want_rx = editorRowCxToRx(&E.row[E.cy], E.cx);
-	else E.cx = editorRowRxToCx(&E.row[E.cy], E.want_rx);
-
 	row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+
+	if (row) {
+		if (!(key == ARROW_UP || key == ARROW_DOWN)) E.want_rx = editorRowCxToRx(row, E.cx);
+		else E.cx = editorRowRxToCx(row, E.want_rx);
+	}
+
 	int rowlen = row ? row->size : 0;
 	if (E.cx > rowlen) {
 		E.cx = rowlen;
