@@ -87,6 +87,7 @@ static void lcd_set_region(int x1, int y1, int x2, int y2) {
 	lcd_write_cmd(cmd2, 5);
 	uint8_t cmd = 0x2c; // RAMWR
 	lcd_write_cmd(&cmd, 1);
+	sleep_us(1);
 	lcd_set_dc_cs(1, 0);
 }
 
