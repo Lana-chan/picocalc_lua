@@ -8,7 +8,7 @@ local function randomCircle()
 	draw.circleFill(x,y,r,c)
 end
 
-local sprites = draw.loadBMPSprites("lua/boxworld.bmp", 30, 30)
+local sprites = draw.loadBMPSprites("lua/boxworld.bmp", 20, 20)
 
 local function randomSprite()
 	local x = math.random(-29, 319)
