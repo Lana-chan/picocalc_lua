@@ -59,6 +59,7 @@ This API has been in part influenced by the [CC:Tweaked](https://tweaked.cc/) AP
 	- [`setTextColor(color)`](#settextcolorcolor)
 	- [`getBackgroundColor()`](#getbackgroundcolor)
 	- [`setBackgroundColor(color)`](#setbackgroundcolorcolor)
+	- [`read([prompt])`](#readprompt)
 	- [`write(text)`](#writetext)
 	- [`blit(text, fg, bg)`](#blittext-fg-bg)
 	- [`loadFont(filename)`](#loadfontfilename)
@@ -522,8 +523,17 @@ Sets the background color for the text to be written in
 **Parameters**
 1. `color : number` - The [`color`](#colors---color-functions-and-constants) in a 16-bit format
 
+## `read([prompt])`
+Produces a prompt for user text entry which echoes to the screen, waiting until the Enter key is pressed
+
+**Parameters**
+1. `prompt : string` - An optional prompt to be shown where the user enters text
+
+**Returns**
+1. `string` - The user's input
+
 ## `write(text)`
-Writes text to the terminal screen at the current cursor position with the current text colors, updating the horizontal cursor position to the end of the text. Does not wrap text or update the cursor in the vertical position
+Writes text to the terminal screen at the current cursor position with the current text colors, updating the cursor position to the end of the text. Unlike `print()`, does not automatically line break at the end
 
 **Parameters**
 1. `text : string` - The text to be written

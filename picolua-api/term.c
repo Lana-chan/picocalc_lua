@@ -8,6 +8,8 @@
 #include "../drivers/lcd.h"
 #include "types.h"
 
+#define INPUT_SIZE 256
+
 static int l_term_getCursorPos(lua_State* L) {
 	lua_pushinteger(L, term_get_x());
 	lua_pushinteger(L, term_get_y());
@@ -78,6 +80,14 @@ static int l_term_setBackgroundColor(lua_State* L) {
 	return 0;
 }
 
+static int l_term_read(lua_State* L) {
+	char input[INPUT_SIZE];
+	const char* prompt = luaL_optstring(L, 1, "");
+	int len = term_readline(prompt, input, INPUT_SIZE, NULL);
+	lua_pushlstring(L, input, len);
+	return 1;
+}
+
 static int l_term_write(lua_State* L) {
 	size_t len;
 	const char* text = luaL_checklstring(L, 1, &len);
@@ -130,6 +140,7 @@ int luaopen_term(lua_State *L) {
 		{"setTextColor", l_term_setTextColor},
 		{"getBackgroundColor", l_term_getBackgroundColor},
 		{"setBackgroundColor", l_term_setBackgroundColor},
+		{"read", l_term_read},
 		{"write", l_term_write},
 		{"blit", l_term_blit},
 		{"loadFont", l_term_loadfont},

@@ -404,7 +404,7 @@ static void history_save(history_t* history, int entry, char* text, int size) {
 	}
 }
 
-int term_readline(char* prompt, char* buffer, int max_length, history_t* history) {
+int term_readline(const char* prompt, char* buffer, int max_length, history_t* history) {
 	int cursor = 0;
 	int size = 0;
 
@@ -417,6 +417,9 @@ int term_readline(char* prompt, char* buffer, int max_length, history_t* history
 	}
 
 	stdio_picocalc_out_chars(prompt, strlen(prompt));
+
+	bool cursor_was_enabled = ansi.cursor_enabled;
+	term_set_blinking_cursor(true);
 
 	while (true) {
 		input_event_t event = keyboard_wait();
@@ -433,8 +436,9 @@ int term_readline(char* prompt, char* buffer, int max_length, history_t* history
 				ansi.x += size % font.term_width;
 				ansi.y += size / font.term_width;
 				stdio_picocalc_out_chars("\n", 1);
-				history_save(history, 0, buffer, size);
+				if (history) history_save(history, 0, buffer, size);
 				ansi.len = 0;
+				term_set_blinking_cursor(cursor_was_enabled);
 				return size;
 			} else if (history && event.code == KEY_UP && history->current < 31 && history->buffer[history->current + 1] != NULL) {
 				term_erase_input(size);
@@ -460,7 +464,8 @@ int term_readline(char* prompt, char* buffer, int max_length, history_t* history
 				cursor = 0;
 			} else if (event.code == KEY_END) {
 				cursor = size;
-			} else if (event.code == KEY_BACKSPACE && cursor > 0) {
+			} else if ((event.code == KEY_BACKSPACE && cursor > 0) || (event.code == KEY_DELETE && cursor < size)) {
+				if (event.code == KEY_DELETE) cursor++;
 				term_erase_input(size);
 				cursor -= 1;
 				size -= 1;
@@ -486,5 +491,6 @@ int term_readline(char* prompt, char* buffer, int max_length, history_t* history
 			}
 		}
 	}
+	term_set_blinking_cursor(cursor_was_enabled);
 	return 0;
 }
