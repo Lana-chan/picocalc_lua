@@ -427,6 +427,7 @@ function game.input()
 			game.entry()
 		end
 	end
+	collectgarbage()
 end
 
 function game.update(now)

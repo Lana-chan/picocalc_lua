@@ -206,7 +206,7 @@ int keyboard_init() {
 	memset(keystates, KEY_STATE_IDLE, KEY_COUNT);
 	queue_init(&key_fifo, sizeof(input_event_t), KBD_BUFFER_SIZE);
 	while (i2c_kbd_read_key() != 0); // Drain queue
-	add_repeating_timer_ms(-10, on_keyboard_timer, NULL, &key_timer);
+	add_repeating_timer_ms(10, on_keyboard_timer, NULL, &key_timer);
 }
 
 int get_battery(bool* charging) {
