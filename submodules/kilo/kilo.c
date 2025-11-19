@@ -1078,7 +1078,7 @@ void editorDrawRows(struct abuf *ab, int margin) {
 						}
 					}
 				}
-				abAppend(ab, "\x1b[39m", 8);
+				abAppend(ab, "\x1b[39m", 6);
 			}
 			abAppend(ab, "\x1b[K", 3);
 		}
