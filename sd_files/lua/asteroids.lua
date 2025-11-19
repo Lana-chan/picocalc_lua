@@ -211,8 +211,8 @@ function player:draw()
 end
 
 local function hud_draw()
-	draw.text(15,15,fg,bg,"       ")
-	draw.text(15,15,fg,bg,score) 
+	draw.text(15,15,"       ",fg,bg)
+	draw.text(15,15,score,fg,bg) 
 	for i = 0, 3 do
 		local color = i < lives and fg or bg
 		draw_rotated(poly_ship, width - 20 - 20*i, 20, 0, 1, color)
