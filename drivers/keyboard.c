@@ -11,7 +11,7 @@
 #define KBD_MOD    i2c1
 #define KBD_SDA    6
 #define KBD_SCL    7
-#define KBD_SPEED  20000 // if dual i2c, then the speed of keyboard i2c should be 10khz
+#define KBD_SPEED  10000 // if dual i2c, then the speed of keyboard i2c should be 10khz
 #define KBD_ADDR   0x1F
 
 // Commands defined by the keyboard driver
@@ -31,7 +31,7 @@ enum {
 	REG_ID_C64_JS = 0x0d,  // joystick io bits
 };
 
-#define I2C_TIMEOUT 10000
+#define I2C_TIMEOUT 50000
 volatile atomic_bool i2c_in_use = false;
 
 #define KEY_COUNT 256
@@ -54,7 +54,7 @@ static int keyboard_modifiers;
 static int i2c_kbd_write(unsigned char* data, int size) {
 	if (atomic_load(&i2c_in_use) == true) return 0;
 	atomic_store(&i2c_in_use, true);
-	int retval = i2c_write_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, I2C_TIMEOUT * size);
+	int retval = i2c_write_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, I2C_TIMEOUT);
 	atomic_store(&i2c_in_use, false);
 	if (retval == PICO_ERROR_GENERIC || retval == PICO_ERROR_TIMEOUT) {
 		printf("i2c_kbd_write: i2c write error\n");
@@ -66,7 +66,7 @@ static int i2c_kbd_write(unsigned char* data, int size) {
 static int i2c_kbd_read(unsigned char* data, int size) {
 	if (atomic_load(&i2c_in_use) == true) return 0;
 	atomic_store(&i2c_in_use, true);
-	int retval = i2c_read_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, I2C_TIMEOUT * size);
+	int retval = i2c_read_timeout_us(KBD_MOD, KBD_ADDR, data, size, false, I2C_TIMEOUT);
 	atomic_store(&i2c_in_use, false);
 	if (retval == PICO_ERROR_GENERIC || retval == PICO_ERROR_TIMEOUT) {
 		printf("i2c_kbd_read: i2c read error\n");
